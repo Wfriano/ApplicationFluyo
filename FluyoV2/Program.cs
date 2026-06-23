@@ -11,6 +11,8 @@ using FluyoV2.Features.Goals.Repositories;
 using FluyoV2.Features.Goals.Services;
 using FluyoV2.Features.Transactions.Repositories;
 using FluyoV2.Features.Transactions.Services;
+using FluyoV2.Features.Transfers.Repositories;
+using FluyoV2.Features.Transfers.Services;
 using FluyoV2.Infrastructure.Persistence;
 using FluyoV2.Middleware;
 using FluyoV2.Settings;
@@ -124,6 +126,9 @@ builder.Services.AddSingleton<CategoriesService>();
 
 builder.Services.AddScoped<TransactionsRepository>();
 builder.Services.AddScoped<TransactionsService>();
+
+builder.Services.AddScoped<TransfersRepository>();
+builder.Services.AddScoped<TransfersService>();
 
 builder.Services.AddScoped<DashboardService>();
 

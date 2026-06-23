@@ -11,4 +11,10 @@ public class DashboardSummaryResponse
     public int TotalAccounts { get; set; }
 
     public int TotalTransactions { get; set; }
+
+    public decimal MonthlyCommitments { get; set; }
+
+    public decimal AvailableBalance { get; set; }
+
+    public int ActiveGoals { get; set; }
 }

@@ -5,6 +5,7 @@ using FluyoV2.Features.Accounts.Models;
 using FluyoV2.Features.Transactions.Models;
 using FluyoV2.Features.Goals.Models;
 using FluyoV2.Features.Commitments.Models;
+using FluyoV2.Features.Transfers.Models;
 
 namespace FluyoV2.Infrastructure.Persistence;
 
@@ -39,4 +40,7 @@ public class MongoDbContext
 
     public IMongoCollection<Commitment> Commitments =>
         _database.GetCollection<Commitment>("Commitments");
+
+    public IMongoCollection<Transfer> Transfers =>
+    _database.GetCollection<Transfer>("Transfers");
 }
