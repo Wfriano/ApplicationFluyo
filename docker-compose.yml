@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  fluyov2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fluyo-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      MongoDbSettings__ConnectionString: mongodb+srv://FluyoBd:wD9PNER1FkWUja8I@cluster0.6ntqrdd.mongodb.net/?appName=Cluster0
+      MongoDbSettings__DatabaseName: FluyoDb
+      JwtSettings__Key: clave_super_secreta_de_minimo_32_caracteres
+      JwtSettings__Issuer: FluyoV2
+      JwtSettings__Audience: FluyoApiUsers
+      JwtSettings__ExpiresInMinutes: "60"
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
