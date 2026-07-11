@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: fluyo-api
+    runtime: docker
+    plan: free
+    # Environment variables
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: MongoDbSettings__ConnectionString
+        value: mongodb+srv://FluyoBd:wD9PNER1FkWUja8I@cluster0.6ntqrdd.mongodb.net/?appName=Cluster0
+      - key: MongoDbSettings__DatabaseName
+        value: FluyoDb
+      - key: JwtSettings__Key
+        value: clave_super_secreta_de_minimo_32_caracteres
+      - key: JwtSettings__Issuer
+        value: FluyoV2
+      - key: JwtSettings__Audience
+        value: FluyoApiUsers
+      - key: JwtSettings__ExpiresInMinutes
+        value: "60"
+      - key: ASPNETCORE_URLS
+        value: http://+:${PORT}
+    # Health check endpoint
+    healthCheckPath: /health

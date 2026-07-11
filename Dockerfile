@@ -30,11 +30,10 @@ WORKDIR /app
 COPY --from=publish /app/publish .
 
 # Environment variables
-ENV ASPNETCORE_URLS=http://+:8080
 ENV ASPNETCORE_ENVIRONMENT=Production
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl --fail http://localhost:8080/health || exit 1
+# Health check (commented for Render compatibility)
+# HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+#     CMD curl --fail http://localhost:8080/health || exit 1
 
 ENTRYPOINT ["dotnet", "FluyoV2.dll"]
