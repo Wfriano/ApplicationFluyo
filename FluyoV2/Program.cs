@@ -143,11 +143,11 @@ builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 var app = builder.Build();
 
 // Middleware
-if (app.Environment.IsDevelopment())
+app.UseSwagger();
+app.UseSwaggerUI(options =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "Fluyo API v1");
+});
 
 app.UseMiddleware<ExceptionMiddleware>();
 
