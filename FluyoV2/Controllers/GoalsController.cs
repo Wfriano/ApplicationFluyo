@@ -1,7 +1,7 @@
 ﻿using FluentValidation;
 using FluyoV2.Controllers.Base;
 using FluyoV2.Features.Goals.Dtos;
-using FluyoV2.Features.Goals.Services;
+using FluyoV2.Features.Goals.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -12,11 +12,11 @@ namespace FluyoV2.Controllers;
 [Authorize]
 public class GoalsController : BaseController
 {
-    private readonly GoalsService _service;
+    private readonly IGoalsService _service;
     private readonly IValidator<CreateGoalRequest> _validator;
 
     public GoalsController(
-        GoalsService service,
+        IGoalsService service,
         IValidator<CreateGoalRequest> validator)
     {
         _service = service;
@@ -42,18 +42,18 @@ public class GoalsController : BaseController
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetActiveStatus(bool isActive)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         if (string.IsNullOrEmpty(userId))
             return Failure("Usuario no autorizado");
 
-        var result = await _service.GetAllAsync(userId);
+        var result = await _service.GetActiveStatusAsync(userId, isActive);
 
         return Success(result, "Metas consultadas correctamente");
     }
-
+    
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)
     {
@@ -67,7 +67,7 @@ public class GoalsController : BaseController
         if (goal is null)
             return NotFoundResponse("Meta no encontrada");
 
-        return Success(goal, "Meta consultada correctamente");
+        return Success(goal, "Meta consultada correctamente"); 
     }
 
     [HttpPut("{id}")]
@@ -102,24 +102,6 @@ public class GoalsController : BaseController
             return NotFoundResponse("Meta no encontrada");
 
         return Success(true, "Meta eliminada correctamente");
-    }
-
-    [HttpPost("{id}/deposit")]
-    public async Task<IActionResult> Deposit(
-        string id,
-        DepositGoalRequest request)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        if (string.IsNullOrEmpty(userId))
-            return Failure("Usuario no autorizado");
-
-        var goal = await _service.DepositAsync(id, userId, request.Amount);
-
-        if (goal is null)
-            return NotFoundResponse("Meta no encontrada");
-
-        return Success(goal, "Abono registrado correctamente");
     }
 
     [HttpPost("{id}/complete")]

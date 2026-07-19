@@ -9,6 +9,7 @@ using FluyoV2.Features.Commitments.Services;
 using FluyoV2.Features.Dashboard.Services;
 using FluyoV2.Features.Goals.Repositories;
 using FluyoV2.Features.Goals.Services;
+using FluyoV2.Features.Goals.Interfaces;
 using FluyoV2.Features.Transactions.Repositories;
 using FluyoV2.Features.Transactions.Services;
 using FluyoV2.Features.Transfers.Repositories;
@@ -133,7 +134,7 @@ builder.Services.AddScoped<TransfersService>();
 builder.Services.AddScoped<DashboardService>();
 
 builder.Services.AddScoped<GoalsRepository>();
-builder.Services.AddScoped<GoalsService>();
+builder.Services.AddScoped<IGoalsService, GoalsService>();
 
 builder.Services.AddScoped<CommitmentsRepository>();
 builder.Services.AddScoped<CommitmentsService>();

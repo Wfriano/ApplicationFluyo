@@ -1,11 +1,11 @@
 ﻿using FluyoV2.Features.Goals.Dtos;
 using FluyoV2.Features.Goals.Models;
 using FluyoV2.Features.Goals.Repositories;
-using Microsoft.Extensions.Logging;
+using FluyoV2.Features.Goals.Interfaces;
 
 namespace FluyoV2.Features.Goals.Services;
 
-public class GoalsService
+public class GoalsService : IGoalsService
 {
     private readonly GoalsRepository _repository;
     private readonly ILogger<GoalsService> _logger;
@@ -26,9 +26,9 @@ public class GoalsService
         {
             UserId = userId,
             Name = request.Name,
-            Description = request.Description,
             TargetAmount = request.TargetAmount,
             TargetDate = request.TargetDate,
+            Image = request.ImageUrl ?? string.Empty,
             CurrentAmount = 0,
             IsCompleted = false
         };
@@ -44,10 +44,16 @@ public class GoalsService
         return Map(goal);
     }
 
-    public async Task<List<GoalResponse>> GetAllAsync(
-        string userId)
+    public async Task<List<GoalResponse>> GetActiveStatusAsync(
+        string userId,
+        bool isActive)
     {
         var goals = await _repository.GetByUserAsync(userId);
+
+        if (isActive)
+            goals = goals.Where(g => !g.IsCompleted)?.ToList();
+        else
+            goals = goals.Where(g => g.IsCompleted)?.ToList();
 
         _logger.LogInformation(
             "Metas consultadas. UserId: {UserId}, Total: {Total}",
@@ -94,9 +100,9 @@ public class GoalsService
         }
 
         goal.Name = request.Name;
-        goal.Description = request.Description;
         goal.TargetAmount = request.TargetAmount;
         goal.TargetDate = request.TargetDate;
+        goal.Image = request.ImageUrl ?? string.Empty;
 
         await _repository.UpdateAsync(goal);
 
@@ -134,42 +140,6 @@ public class GoalsService
         return true;
     }
 
-    public async Task<GoalResponse?> DepositAsync(
-        string id,
-        string userId,
-        decimal amount)
-    {
-        var goal = await _repository.GetByIdAsync(id);
-
-        if (goal is null || goal.UserId != userId)
-        {
-            _logger.LogWarning(
-                "Intento de abono a meta inexistente. UserId: {UserId}, GoalId: {GoalId}",
-                userId,
-                id);
-
-            return null;
-        }
-
-        goal.CurrentAmount += amount;
-
-        if (goal.CurrentAmount >= goal.TargetAmount)
-        {
-            goal.CurrentAmount = goal.TargetAmount;
-            goal.IsCompleted = true;
-        }
-
-        await _repository.UpdateAsync(goal);
-
-        _logger.LogInformation(
-            "Abono registrado. UserId: {UserId}, GoalId: {GoalId}, Amount: {Amount}",
-            userId,
-            id,
-            amount);
-
-        return Map(goal);
-    }
-
     public async Task<GoalResponse?> CompleteAsync(
         string id,
         string userId)
@@ -205,11 +175,10 @@ public class GoalsService
         {
             Id = goal.Id,
             Name = goal.Name,
-            Description = goal.Description,
             TargetAmount = goal.TargetAmount,
+            IsCompleted = goal.IsCompleted,
             CurrentAmount = goal.CurrentAmount,
             TargetDate = goal.TargetDate,
-            IsCompleted = goal.IsCompleted,
             ProgressPercentage =
                 goal.TargetAmount == 0
                     ? 0
