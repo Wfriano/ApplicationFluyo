@@ -35,14 +35,38 @@ public class UsersController : BaseController
             Email = email
         };
 
-        return Success(result, "Usuario consultado correctamente");
+        return Success(result, "Usuario consultado correctamente"
+        );
+    }
+
+    [HttpGet("profile")]
+    public async Task<IActionResult> GetProfile()
+    {
+        var userId = User.FindFirstValue(
+            ClaimTypes.NameIdentifier
+        );
+
+        if (string.IsNullOrWhiteSpace(userId))
+            return Failure("Usuario no autorizado");
+
+        var result = await _userService.GetProfileAsync(userId);
+
+        if (result is null)
+            return Failure("Usuario no encontrado");
+
+        return Success(
+            result,
+            "Perfil consultado correctamente"
+        );
     }
 
     [HttpPut("change-password")]
     public async Task<IActionResult> ChangePassword(
         [FromBody] ChangePasswordRequest request)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var userId = User.FindFirstValue(
+            ClaimTypes.NameIdentifier
+        );
 
         if (string.IsNullOrWhiteSpace(userId))
             return Failure("Usuario no autorizado");
@@ -56,7 +80,11 @@ public class UsersController : BaseController
             return Failure(result.Message);
 
         return Success(
-            new { },
-            result.Message);
+            new
+            {
+                PasswordUpdated = true
+            },
+            result.Message
+        );
     }
 }

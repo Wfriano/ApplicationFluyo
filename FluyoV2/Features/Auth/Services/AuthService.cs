@@ -54,7 +54,9 @@ public class AuthService
                     request.Password),
             EmailVerified = false,
             RefreshToken = Guid.NewGuid().ToString(),
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            PhoneNumber = request.PhoneNumber.Trim(),
+            DateOfBirth = request.DateOfBirth
         };
 
         await _authRepository.CreateAsync(user);

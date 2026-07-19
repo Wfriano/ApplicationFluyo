@@ -83,6 +83,26 @@ public class UserService : IUserService
         };
     }
 
+    public async Task<UserResponse?> GetProfileAsync(string userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            return null;
+
+        var user = await _userRepository.GetByIdAsync(userId);
+
+        if (user is null)
+            return null;
+
+        return new UserResponse
+        {
+            FullName = user.FullName,
+            Email = user.Email,
+            PhoneNumber = user.PhoneNumber,
+            DateOfBirth = user.DateOfBirth,
+            PhotoUser = user.PhotoUser
+        };
+    }
+
     private static ChangePasswordResponse Error(string message)
     {
         return new ChangePasswordResponse

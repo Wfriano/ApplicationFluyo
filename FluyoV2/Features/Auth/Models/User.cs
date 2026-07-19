@@ -15,4 +15,7 @@ public class User
     public string RefreshToken { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? PasswordUpdatedAt { get; set; }
+    public string PhoneNumber { get; set; } = string.Empty;
+    public DateTime DateOfBirth { get; set; }
+    public string PhotoUser { get; set; } = string.Empty;
 }
