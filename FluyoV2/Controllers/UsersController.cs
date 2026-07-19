@@ -1,4 +1,6 @@
 ﻿using FluyoV2.Controllers.Base;
+using FluyoV2.Users.Dtos;
+using FluyoV2.Users.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -9,6 +11,13 @@ namespace FluyoV2.Controllers;
 [Authorize]
 public class UsersController : BaseController
 {
+    private readonly IUserService _userService;
+
+    public UsersController(IUserService userService)
+    {
+        _userService = userService;
+    }
+
     [HttpGet("me")]
     public IActionResult Me()
     {
@@ -27,5 +36,27 @@ public class UsersController : BaseController
         };
 
         return Success(result, "Usuario consultado correctamente");
+    }
+
+    [HttpPut("change-password")]
+    public async Task<IActionResult> ChangePassword(
+        [FromBody] ChangePasswordRequest request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrWhiteSpace(userId))
+            return Failure("Usuario no autorizado");
+
+        var result = await _userService.ChangePasswordAsync(
+            userId,
+            request
+        );
+
+        if (!result.Success)
+            return Failure(result.Message);
+
+        return Success(
+            new { },
+            result.Message);
     }
 }

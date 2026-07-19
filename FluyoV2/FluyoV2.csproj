@@ -18,9 +18,7 @@
 
   <ItemGroup>
     <Folder Include="Features\Categories\Repositories\" />
-    <Folder Include="Features\Users\Dtos\" />
-    <Folder Include="Features\Users\Repositories\" />
-    <Folder Include="Features\Users\Services\" />
+    <Folder Include="Features\Users\Models\" />
   </ItemGroup>
 
 </Project>

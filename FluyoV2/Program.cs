@@ -7,9 +7,9 @@ using FluyoV2.Features.Categories.Services;
 using FluyoV2.Features.Commitments.Repositories;
 using FluyoV2.Features.Commitments.Services;
 using FluyoV2.Features.Dashboard.Services;
+using FluyoV2.Features.Goals.Interfaces;
 using FluyoV2.Features.Goals.Repositories;
 using FluyoV2.Features.Goals.Services;
-using FluyoV2.Features.Goals.Interfaces;
 using FluyoV2.Features.Transactions.Repositories;
 using FluyoV2.Features.Transactions.Services;
 using FluyoV2.Features.Transfers.Repositories;
@@ -17,6 +17,8 @@ using FluyoV2.Features.Transfers.Services;
 using FluyoV2.Infrastructure.Persistence;
 using FluyoV2.Middleware;
 using FluyoV2.Settings;
+using FluyoV2.Users.Repositories;
+using FluyoV2.Users.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -138,6 +140,9 @@ builder.Services.AddScoped<IGoalsService, GoalsService>();
 
 builder.Services.AddScoped<CommitmentsRepository>();
 builder.Services.AddScoped<CommitmentsService>();
+
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IUserService, UserService>();
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
