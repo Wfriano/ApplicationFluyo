@@ -13,4 +13,13 @@ public interface IUserRepository
         string newPasswordHash,
         DateTime passwordUpdatedAt
     );
+
+    Task<bool> UpdateProfileAsync(
+        string userId,
+        string fullName,
+        string email,
+        string? phoneNumber,
+        DateTime? dateOfBirth,
+        string photoUser
+    );
 }

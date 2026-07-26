@@ -1,11 +1,11 @@
-﻿using FluyoV2.Features.Auth.Models;
+﻿using FluyoV2.Features.Accounts.Models;
+using FluyoV2.Features.Auth.Models;
+using FluyoV2.Features.Commitments.Models;
+using FluyoV2.Features.Goals.Models;
+using FluyoV2.Features.Transactions.Models;
+using FluyoV2.Features.Transfers.Models;
 using FluyoV2.Settings;
 using MongoDB.Driver;
-using FluyoV2.Features.Accounts.Models;
-using FluyoV2.Features.Transactions.Models;
-using FluyoV2.Features.Goals.Models;
-using FluyoV2.Features.Commitments.Models;
-using FluyoV2.Features.Transfers.Models;
 
 namespace FluyoV2.Infrastructure.Persistence;
 

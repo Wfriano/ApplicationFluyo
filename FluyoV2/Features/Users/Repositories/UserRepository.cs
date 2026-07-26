@@ -52,4 +52,26 @@ public class UserRepository : IUserRepository
 
         return result.ModifiedCount > 0;
     }
+    public async Task<bool> UpdateProfileAsync(
+    string userId,
+    string fullName,
+    string email,
+    string? phoneNumber,
+    DateTime? dateOfBirth,
+    string photoUser)
+    {
+        var update = Builders<User>.Update
+            .Set(x => x.FullName, fullName)
+            .Set(x => x.Email, email)
+            .Set(x => x.PhoneNumber, phoneNumber)
+            .Set(x => x.DateOfBirth, dateOfBirth)
+            .Set(x => x.PhotoUser, photoUser);
+
+        var result = await _usersCollection.UpdateOneAsync(
+            x => x.Id == userId,
+            update
+        );
+
+        return result.MatchedCount > 0;
+    }
 }

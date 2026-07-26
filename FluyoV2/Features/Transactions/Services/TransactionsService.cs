@@ -54,7 +54,8 @@ public class TransactionsService
             Category = request.Category,
             Type = TransactionTypes.Income,
             Amount = request.Amount,
-            Description = request.Description
+            Description = request.Description,
+            TransactionDate = request.TransactionDate
         };
 
         await _repository.CreateAsync(transaction);

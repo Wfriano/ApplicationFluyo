@@ -111,4 +111,30 @@ public class UserService : IUserService
             Message = message
         };
     }
+    public async Task<UserResponse?> UpdateProfileAsync(
+    string userId,
+    UpdateUserRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            return null;
+
+        if (request is null)
+            return null;
+
+        var fullName = request.FullName.Trim();
+
+        var updated = await _userRepository.UpdateProfileAsync(
+            userId,
+            fullName,
+            request.Email,
+            request.PhoneNumber?.Trim(),
+            request.DateOfBirth,
+            request.PhotoUser
+        );
+
+        if (!updated)
+            return null;
+
+        return await GetProfileAsync(userId);
+    }
 }

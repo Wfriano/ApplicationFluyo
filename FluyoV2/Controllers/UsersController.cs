@@ -87,4 +87,29 @@ public class UsersController : BaseController
             result.Message
         );
     }
+
+    [HttpPut("profile")]
+    public async Task<IActionResult> UpdateProfile(
+    [FromBody] UpdateUserRequest request)
+    {
+        var userId = User.FindFirstValue(
+            ClaimTypes.NameIdentifier
+        );
+
+        if (string.IsNullOrWhiteSpace(userId))
+            return Failure("Usuario no autorizado");
+
+        var result = await _userService.UpdateProfileAsync(
+            userId,
+            request
+        );
+
+        if (result is null)
+            return Failure("No fue posible actualizar el perfil");
+
+        return Success(
+            result,
+            "Perfil actualizado correctamente"
+        );
+    }
 }
