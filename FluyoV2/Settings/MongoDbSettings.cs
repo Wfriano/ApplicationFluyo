@@ -8,6 +8,7 @@
         public string AccountsCollectionName { get; set; } = string.Empty;
         public string TransactionsCollectionName { get; set; } = string.Empty;
         public string GoalsCollectionName { get; set; } = string.Empty;
+        public string RecurrencesCollectionName { get; set; } = string.Empty;
 
     }
 }

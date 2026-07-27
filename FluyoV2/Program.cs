@@ -131,6 +131,11 @@ builder.Services.AddSingleton<CategoriesService>();
 builder.Services.AddScoped<TransactionsRepository>();
 builder.Services.AddScoped<TransactionsService>();
 
+builder.Services.AddScoped<RecurrencesRepository>();
+builder.Services.AddScoped<RecurrencesService>();
+// Background service to process recurrences
+builder.Services.AddHostedService<FluyoV2.BackgroundServices.RecurrenceProcessorService>();
+
 builder.Services.AddScoped<TransfersRepository>();
 builder.Services.AddScoped<TransfersService>();
 

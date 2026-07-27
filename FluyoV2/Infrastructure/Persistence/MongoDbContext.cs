@@ -3,6 +3,7 @@ using FluyoV2.Features.Auth.Models;
 using FluyoV2.Features.Commitments.Models;
 using FluyoV2.Features.Goals.Models;
 using FluyoV2.Features.Transactions.Models;
+using FluyoV2.Features.Transactions.Models;
 using FluyoV2.Features.Transfers.Models;
 using FluyoV2.Settings;
 using MongoDB.Driver;
@@ -33,6 +34,10 @@ public class MongoDbContext
     public IMongoCollection<Transaction> Transactions =>
         _database.GetCollection<Transaction>(
             _settings.TransactionsCollectionName);
+
+    public IMongoCollection<Recurrence> Recurrences =>
+        _database.GetCollection<Recurrence>(
+            _settings.RecurrencesCollectionName);
 
     public IMongoCollection<Goal> Goals =>
         _database.GetCollection<Goal>(

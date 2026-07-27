@@ -27,6 +27,24 @@ public class TransactionsRepository
             .ToListAsync();
     }
 
+    public async Task<Transaction?> GetByIdAsync(string id)
+    {
+        return await _context.Transactions
+            .Find(x => x.Id == id)
+            .FirstOrDefaultAsync();
+    }
+
+    public async Task UpdateAsync(Transaction transaction)
+    {
+        await _context.Transactions
+            .ReplaceOneAsync(x => x.Id == transaction.Id, transaction);
+    }
+
+    public async Task DeleteAsync(string id)
+    {
+        await _context.Transactions.DeleteOneAsync(x => x.Id == id);
+    }
+
     public async Task<decimal> GetTotalIncomeAsync(
     string userId)
     {
