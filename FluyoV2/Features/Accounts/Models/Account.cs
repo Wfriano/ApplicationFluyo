@@ -20,6 +20,9 @@ public class Account
 
     public string Currency { get; set; } = "COP";
 
+    // Optional color for the account icon (mapped from incoming XML/JSON)
+    public string IconColor { get; set; } = string.Empty;
+
     public bool IsArchived { get; set; } = false;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

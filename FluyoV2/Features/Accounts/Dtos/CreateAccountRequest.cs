@@ -9,4 +9,7 @@ public class CreateAccountRequest
     public decimal Balance { get; set; }
 
     public string Currency { get; set; } = "COP";
+
+    // Optional color for the account icon (hex code or color name)
+    public string IconColor { get; set; } = string.Empty;
 }

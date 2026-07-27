@@ -29,6 +29,8 @@ public class AccountsService
             Type = request.Type,
             Balance = request.Balance,
             Currency = request.Currency
+                ,
+                IconColor = request.IconColor
         };
 
         await _repository.CreateAsync(account);
@@ -95,6 +97,7 @@ public class AccountsService
         account.Type = request.Type;
         account.Balance = request.Balance;
         account.Currency = request.Currency;
+        account.IconColor = request.IconColor;
 
         await _repository.UpdateAsync(account);
 
@@ -161,6 +164,7 @@ public class AccountsService
             Type = account.Type,
             Balance = account.Balance,
             Currency = account.Currency,
+            IconColor = account.IconColor,
             IsArchived = account.IsArchived,
             CreatedAt = account.CreatedAt
         };

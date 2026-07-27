@@ -12,6 +12,8 @@ public class AccountResponse
 
     public string Currency { get; set; } = "COP";
 
+    public string IconColor { get; set; } = string.Empty;
+
     public bool IsArchived { get; set; }
 
     public DateTime CreatedAt { get; set; }
