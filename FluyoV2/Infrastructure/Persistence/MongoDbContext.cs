@@ -37,7 +37,9 @@ public class MongoDbContext
 
     public IMongoCollection<Recurrence> Recurrences =>
         _database.GetCollection<Recurrence>(
-            _settings.RecurrencesCollectionName);
+            string.IsNullOrWhiteSpace(_settings.RecurrencesCollectionName)
+                ? "Recurrences"
+                : _settings.RecurrencesCollectionName);
 
     public IMongoCollection<Goal> Goals =>
         _database.GetCollection<Goal>(
