@@ -26,11 +26,8 @@ public class AccountsService
         {
             UserId = userId,
             Name = request.Name,
-            Type = request.Type,
             Balance = request.Balance,
-            Currency = request.Currency
-                ,
-                IconColor = request.IconColor
+            IconColor = request.IconColor
         };
 
         await _repository.CreateAsync(account);

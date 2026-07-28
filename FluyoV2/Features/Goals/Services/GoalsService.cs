@@ -1,6 +1,7 @@
 ﻿using FluyoV2.Features.Goals.Dtos;
 using FluyoV2.Features.Goals.Models;
 using FluyoV2.Features.Goals.Repositories;
+using FluyoV2.Features.Accounts.Repositories;
 using FluyoV2.Features.Goals.Interfaces;
 
 namespace FluyoV2.Features.Goals.Services;
@@ -8,13 +9,16 @@ namespace FluyoV2.Features.Goals.Services;
 public class GoalsService : IGoalsService
 {
     private readonly GoalsRepository _repository;
+    private readonly AccountsRepository _accountsRepository;
     private readonly ILogger<GoalsService> _logger;
 
     public GoalsService(
         GoalsRepository repository,
+        AccountsRepository accountsRepository,
         ILogger<GoalsService> logger)
     {
         _repository = repository;
+        _accountsRepository = accountsRepository;
         _logger = logger;
     }
 
@@ -50,6 +54,9 @@ public class GoalsService : IGoalsService
     {
         var goals = await _repository.GetByUserAsync(userId);
 
+        // Get total balance across user's accounts to use as CurrentAmount
+        var totalBalance = await _accountsRepository.GetTotalBalanceAsync(userId);
+
         if (isActive)
             goals = goals.Where(g => !g.IsCompleted)?.ToList();
         else
@@ -60,7 +67,17 @@ public class GoalsService : IGoalsService
             userId,
             goals.Count);
 
-        return goals.Select(Map).ToList();
+        return goals.Select(g =>
+        {
+            var resp = Map(g);
+            resp.CurrentAmount = totalBalance;
+            resp.RemainingAmount = resp.CurrentAmount - resp.TargetAmount;
+            resp.ProgressPercentage =
+                resp.TargetAmount == 0
+                    ? 0
+                    : Math.Round((resp.CurrentAmount / resp.TargetAmount) * 100, 2);
+            return resp;
+        }).ToList();
     }
 
     public async Task<GoalResponse?> GetByIdAsync(
@@ -79,7 +96,15 @@ public class GoalsService : IGoalsService
             return null;
         }
 
-        return Map(goal);
+        var resp = Map(goal);
+        resp.CurrentAmount = await _accountsRepository.GetTotalBalanceAsync(userId);
+        resp.RemainingAmount = resp.CurrentAmount - resp.TargetAmount;
+        resp.ProgressPercentage =
+            resp.TargetAmount == 0
+                ? 0
+                : Math.Round((resp.CurrentAmount / resp.TargetAmount) * 100, 2);
+
+        return resp;
     }
 
     public async Task<GoalResponse?> UpdateAsync(
@@ -111,7 +136,15 @@ public class GoalsService : IGoalsService
             userId,
             id);
 
-        return Map(goal);
+        var resp = Map(goal);
+        resp.CurrentAmount = await _accountsRepository.GetTotalBalanceAsync(userId);
+        resp.RemainingAmount = resp.CurrentAmount - resp.TargetAmount;
+        resp.ProgressPercentage =
+            resp.TargetAmount == 0
+                ? 0
+                : Math.Round((resp.CurrentAmount / resp.TargetAmount) * 100, 2);
+
+        return resp;
     }
 
     public async Task<bool> DeleteAsync(
@@ -166,7 +199,14 @@ public class GoalsService : IGoalsService
             userId,
             id);
 
-        return Map(goal);
+        var resp = Map(goal);
+        resp.CurrentAmount = await _accountsRepository.GetTotalBalanceAsync(userId);
+        resp.ProgressPercentage =
+            resp.TargetAmount == 0
+                ? 0
+                : Math.Round((resp.CurrentAmount / resp.TargetAmount) * 100, 2);
+
+        return resp;
     }
 
     private static GoalResponse Map(Goal goal)
@@ -178,6 +218,7 @@ public class GoalsService : IGoalsService
             TargetAmount = goal.TargetAmount,
             IsCompleted = goal.IsCompleted,
             CurrentAmount = goal.CurrentAmount,
+            RemainingAmount = goal.CurrentAmount - goal.TargetAmount,
             TargetDate = goal.TargetDate,
             ProgressPercentage =
                 goal.TargetAmount == 0

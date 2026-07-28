@@ -12,15 +12,6 @@ public class CreateAccountRequestValidator
             .NotEmpty()
             .WithMessage("El nombre de la cuenta es obligatorio")
             .MaximumLength(100);
-
-        RuleFor(x => x.Type)
-            .NotEmpty()
-            .WithMessage("El tipo de cuenta es obligatorio");
-
-        RuleFor(x => x.Currency)
-            .NotEmpty()
-            .WithMessage("La moneda es obligatoria");
-
         RuleFor(x => x.Balance)
             .GreaterThanOrEqualTo(0)
             .WithMessage("El saldo inicial no puede ser negativo");

@@ -75,8 +75,7 @@ public class TransfersService
             UserId = userId,
             FromAccountId = request.FromAccountId,
             ToAccountId = request.ToAccountId,
-            Amount = request.Amount,
-            Description = request.Description
+            Amount = request.Amount
         };
 
         await _repository.CreateAsync(transfer);
@@ -115,8 +114,20 @@ public class TransfersService
             fromAccount.Id,
             toAccount.Id,
             request.Amount);
-
-        return Map(transfer);
+        // Return transfer response including updated balances and account names
+        return new TransferResponse
+        {
+            Id = transfer.Id,
+            FromAccountId = transfer.FromAccountId,
+            ToAccountId = transfer.ToAccountId,
+            Amount = transfer.Amount,
+            Description = transfer.Description,
+            CreatedAt = transfer.CreatedAt,
+            FromAccountBalance = fromAccount.Balance,
+            ToAccountBalance = toAccount.Balance,
+            FromAccountName = fromAccount.Name,
+            ToAccountName = toAccount.Name
+        };
     }
 
     public async Task<List<TransferResponse>> GetAllAsync(

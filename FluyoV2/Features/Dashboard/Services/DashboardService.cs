@@ -13,6 +13,7 @@ public class DashboardService
     private readonly TransactionsRepository _transactionsRepository;
     private readonly CommitmentsRepository _commitmentsRepository;
     private readonly GoalsRepository _goalsRepository;
+    private readonly FluyoV2.Features.Transactions.Repositories.RecurrencesRepository _recurrencesRepository;
     private readonly ILogger<DashboardService> _logger;
 
     public DashboardService(
@@ -20,12 +21,14 @@ public class DashboardService
         TransactionsRepository transactionsRepository,
         CommitmentsRepository commitmentsRepository,
         GoalsRepository goalsRepository,
+        FluyoV2.Features.Transactions.Repositories.RecurrencesRepository recurrencesRepository,
         ILogger<DashboardService> logger)
     {
         _accountsRepository = accountsRepository;
         _transactionsRepository = transactionsRepository;
         _commitmentsRepository = commitmentsRepository;
         _goalsRepository = goalsRepository;
+        _recurrencesRepository = recurrencesRepository;
         _logger = logger;
     }
 
@@ -35,6 +38,25 @@ public class DashboardService
         var accounts = await _accountsRepository.GetByUserIdAsync(userId);
         var commitments = await _commitmentsRepository.GetByUserAsync(userId);
         var goals = await _goalsRepository.GetByUserAsync(userId);
+        var recurrences = await _recurrencesRepository.GetByUserAsync(userId);
+
+        var allTransactions = await _transactionsRepository.GetByUserAsync(userId);
+
+        // compute month-based totals
+        var now = DateTime.UtcNow;
+        var monthStart = new DateTime(now.Year, now.Month, 1);
+        var incomeThisMonth = allTransactions
+            .Where(t => t.Type == "Income" && t.TransactionDate >= monthStart)
+            .Sum(t => t.Amount);
+
+        // Exclude transfers from expense calculations
+        var expensesThisMonth = allTransactions
+            .Where(t => t.Type == "Expense" && t.TransactionDate >= monthStart && t.Category != "Transferencia")
+            .Sum(t => t.Amount);
+
+        var debtsTotal = allTransactions
+            .Where(t => t.Type == "Expense" && t.Category != "Transferencia")
+            .Sum(t => t.Amount);
 
         var totalBalance = accounts.Sum(x => x.Balance);
 
@@ -45,23 +67,34 @@ public class DashboardService
         var activeGoals = goals
             .Count(x => !x.IsCompleted);
 
+        // find next scheduled income recurrence
+        var nextIncome = recurrences
+            .Where(r => r.Type == "Income" && r.NextDate >= DateTime.UtcNow)
+            .OrderBy(r => r.NextDate)
+            .FirstOrDefault();
+
         var result = new DashboardSummaryResponse
         {
             TotalBalance = totalBalance,
             TotalAccounts = accounts.Count,
-
-            TotalIncome = await _transactionsRepository
-                .GetTotalIncomeAsync(userId),
-
-            TotalExpenses = await _transactionsRepository
-                .GetTotalExpensesAsync(userId),
-
-            TotalTransactions = await _transactionsRepository
-                .GetTotalTransactionsAsync(userId),
-
+            TotalIncome = await _transactionsRepository.GetTotalIncomeAsync(userId),
+            // Total expenses excluding transfers
+            TotalExpenses = debtsTotal,
+            TotalTransactions = await _transactionsRepository.GetTotalTransactionsAsync(userId),
             MonthlyCommitments = monthlyCommitments,
             AvailableBalance = totalBalance - monthlyCommitments,
-            ActiveGoals = activeGoals
+            DebtsTotal = debtsTotal,
+            CurrentAvailableAfterDebts = totalBalance - debtsTotal - monthlyCommitments,
+            ActiveGoals = activeGoals,
+
+            IncomeThisMonth = incomeThisMonth,
+            ExpensesThisMonth = expensesThisMonth,
+            NetPosition = (await _transactionsRepository.GetTotalIncomeAsync(userId)) - debtsTotal,
+
+            NextIncomeDate = nextIncome?.NextDate,
+            NextIncomeAmount = nextIncome?.Amount,
+            DaysUntilNextIncome = nextIncome is null ? null : (int?)( (nextIncome.NextDate.Date - DateTime.UtcNow.Date).Days ),
+            AmountUntilNextIncome = nextIncome is null ? null : Math.Max(0, nextIncome.Amount - (totalBalance - monthlyCommitments - debtsTotal))
         };
 
         _logger.LogInformation(

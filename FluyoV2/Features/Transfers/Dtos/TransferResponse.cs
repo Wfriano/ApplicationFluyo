@@ -13,4 +13,10 @@ public class TransferResponse
     public string Description { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; }
+
+    // Additional info for UI: updated balances and account display names
+    public decimal FromAccountBalance { get; set; }
+    public decimal ToAccountBalance { get; set; }
+    public string FromAccountName { get; set; } = string.Empty;
+    public string ToAccountName { get; set; } = string.Empty;
 }
