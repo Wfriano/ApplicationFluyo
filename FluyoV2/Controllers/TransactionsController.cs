@@ -4,6 +4,7 @@ using FluyoV2.Features.Transactions.Dtos;
 using FluyoV2.Features.Transactions.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Linq;
 using System.Security.Claims;
 
 namespace FluyoV2.Controllers;
@@ -73,6 +74,23 @@ public class TransactionsController : BaseController
         var result = await _service.GetAllAsync(userId);
 
         return Success(result, "Movimientos consultados correctamente");
+    }
+
+    [HttpGet("expense")]
+    public async Task<IActionResult> GetExpenses()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrEmpty(userId))
+            return Failure("Usuario no autorizado");
+
+        var all = await _service.GetAllAsync(userId);
+
+        var expenses = all
+            .Where(t => string.Equals(t.Type, "expense", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        return Success(expenses, "Gastos consultados correctamente");
     }
 
     [HttpPost("with-recurrence")]
