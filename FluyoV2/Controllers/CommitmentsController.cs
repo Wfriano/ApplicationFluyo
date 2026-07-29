@@ -68,6 +68,34 @@ public class CommitmentsController : BaseController
             "Compromisos consultados correctamente");
     }
 
+    [HttpGet("balance")]
+    public async Task<IActionResult> GetPendingBalance()
+    {
+        var userId = User.FindFirstValue(
+            ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrEmpty(userId))
+            return Failure("Usuario no autorizado");
+
+        var total = await _service.GetPendingTotalAsync(userId);
+
+        return Success(total, "Balance pendiente consultado correctamente");
+    }
+
+    [HttpGet("upcoming")]
+    public async Task<IActionResult> GetUpcoming(int? month = null, int? year = null)
+    {
+        var userId = User.FindFirstValue(
+            ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrEmpty(userId))
+            return Failure("Usuario no autorizado");
+
+        var result = await _service.GetUpcomingAsync(userId, month, year);
+
+        return Success(result, "Próximos compromisos consultados correctamente");
+    }
+
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(
         string id)
@@ -147,7 +175,8 @@ public class CommitmentsController : BaseController
 
     [HttpPost("{id}/pay")]
     public async Task<IActionResult> Pay(
-        string id)
+        string id,
+        [FromBody] FluyoV2.Features.Commitments.Dtos.PayCommitmentRequest? request)
     {
         var userId = User.FindFirstValue(
             ClaimTypes.NameIdentifier);
@@ -155,9 +184,13 @@ public class CommitmentsController : BaseController
         if (string.IsNullOrEmpty(userId))
             return Failure("Usuario no autorizado");
 
+        if (request is null || string.IsNullOrEmpty(request.AccountId))
+            return Failure("La cuenta es obligatoria para marcar como pagado");
+
         var result = await _service.PayCommitmentAsync(
             id,
-            userId);
+            userId,
+            request);
 
         if (result is null)
             return NotFoundResponse(

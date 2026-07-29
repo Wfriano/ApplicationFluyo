@@ -10,7 +10,11 @@ public class UpdateCommitmentRequest
 
     public decimal Amount { get; set; }
 
-    public int DayOfMonth { get; set; }
+    // Optional exact payment date (fecha de pago). Nullable if user doesn't select a date.
+    public DateTime? PaymentDate { get; set; }
+
+    // Optional notes (notas)
+    public string? Notes { get; set; }
 
     public bool IsActive { get; set; }
 }

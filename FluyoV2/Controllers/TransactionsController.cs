@@ -75,24 +75,6 @@ public class TransactionsController : BaseController
 
         return Success(result, "Movimientos consultados correctamente");
     }
-
-    [HttpGet("expense")]
-    public async Task<IActionResult> GetExpenses()
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        if (string.IsNullOrEmpty(userId))
-            return Failure("Usuario no autorizado");
-
-        var all = await _service.GetAllAsync(userId);
-
-        var expenses = all
-            .Where(t => string.Equals(t.Type, "expense", StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        return Success(expenses, "Gastos consultados correctamente");
-    }
-
     [HttpPost("with-recurrence")]
     public async Task<IActionResult> CreateWithRecurrence(CreateTransactionWithRecurrenceRequest request)
     {

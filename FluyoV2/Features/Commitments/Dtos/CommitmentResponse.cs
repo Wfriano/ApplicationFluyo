@@ -16,7 +16,11 @@ public class CommitmentResponse
 
     public decimal Amount { get; set; }
 
-    public int DayOfMonth { get; set; }
+    // Exact payment date (fecha de pago). Nullable if not set.
+    public DateTime? PaymentDate { get; set; }
+
+    // Optional notes
+    public string Notes { get; set; } = string.Empty;
 
     public bool IsActive { get; set; }
 

@@ -21,8 +21,17 @@ public class UpdateCommitmentRequestValidator
             .GreaterThan(0)
             .WithMessage("El valor del compromiso debe ser mayor a cero");
 
-        RuleFor(x => x.DayOfMonth)
-            .InclusiveBetween(1, 31)
-            .WithMessage("El día de pago debe estar entre 1 y 31");
+        // PaymentDate is optional; when provided ensure it's a valid date
+        When(x => x.PaymentDate.HasValue, () =>
+        {
+            RuleFor(x => x.PaymentDate.Value)
+                .LessThan(DateTime.MaxValue);
+        });
+
+        // Notes optional but limit length
+        When(x => !string.IsNullOrEmpty(x.Notes), () =>
+        {
+            RuleFor(x => x.Notes).MaximumLength(500);
+        });
     }
 }

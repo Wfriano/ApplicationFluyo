@@ -19,7 +19,11 @@ public class Commitment
 
     public decimal Amount { get; set; }
 
-    public int DayOfMonth { get; set; }
+    // Optional notes for the commitment (e.g., apartment, period)
+    public string Notes { get; set; } = string.Empty;
+
+    // PaymentDate represents the exact due date (day/month/year). It's optional.
+    public DateTime? PaymentDate { get; set; }
 
     public bool IsActive { get; set; } = true;
 

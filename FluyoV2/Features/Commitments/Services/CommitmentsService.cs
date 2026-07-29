@@ -33,14 +33,34 @@ public class CommitmentsService
         string userId,
         CreateCommitmentRequest request)
     {
+        // avoid duplicate commitments with same name, payment date and amount
+        var existing = (await _repository.GetByUserAsync(userId))
+            .FirstOrDefault(x => x.Name == request.Name
+                && x.Amount == request.Amount
+                && x.Category == request.Category
+                && ((x.PaymentDate.HasValue && request.PaymentDate.HasValue && x.PaymentDate.Value.Date == request.PaymentDate.Value.Date)
+                    || (!x.PaymentDate.HasValue && !request.PaymentDate.HasValue))
+                && (string.IsNullOrEmpty(x.Notes) && string.IsNullOrEmpty(request.Notes) || x.Notes == request.Notes));
+
+        if (existing is not null)
+        {
+            _logger.LogInformation(
+                "Compromiso ya existe. UserId: {UserId}, CommitmentId: {CommitmentId}, Name: {Name}",
+                userId,
+                existing.Id,
+                existing.Name);
+
+            return Map(existing);
+        }
+
         var commitment = new Commitment
         {
             UserId = userId,
-            AccountId = request.AccountId,
             Name = request.Name,
             Category = request.Category,
             Amount = request.Amount,
-            DayOfMonth = request.DayOfMonth
+            PaymentDate = request.PaymentDate,
+            Notes = request.Notes ?? string.Empty
         };
 
         await _repository.CreateAsync(commitment);
@@ -64,7 +84,61 @@ public class CommitmentsService
             userId,
             commitments.Count);
 
-        return commitments.Select(Map).ToList();
+        // return only active commitments
+        return commitments
+            .Where(c => c.IsActive)
+            .Select(Map)
+            .ToList();
+    }
+
+    public async Task<List<UpcomingCommitmentResponse>> GetUpcomingAsync(
+        string userId,
+        int? month = null,
+        int? year = null)
+    {
+        var commitments = await _repository.GetByUserAsync(userId);
+
+        var now = DateTime.UtcNow;
+        var targetMonth = month ?? now.Month;
+        var targetYear = year ?? now.Year;
+
+        var upcoming = commitments
+            .Where(c => c.IsActive && c.PaymentDate.HasValue)
+            .Select(c =>
+            {
+                // compute next due date for the requested month using original payment day
+                var daysInMonth = DateTime.DaysInMonth(targetYear, targetMonth);
+                var day = Math.Min(c.PaymentDate.Value.Day, daysInMonth);
+                var dueDate = new DateTime(targetYear, targetMonth, day);
+
+                var paidThisMonth = c.LastPaymentDate.HasValue
+                    && c.LastPaymentDate.Value.Month == targetMonth
+                    && c.LastPaymentDate.Value.Year == targetYear;
+
+                return new UpcomingCommitmentResponse
+                {
+                    Id = c.Id,
+                    AccountId = c.AccountId,
+                    Name = c.Name,
+                    Category = c.Category,
+                    Amount = c.Amount,
+                    DueDate = dueDate,
+                    IsPaid = paidThisMonth
+                    ,
+                    Notes = c.Notes ?? string.Empty
+                };
+            })
+            // only those not paid this month
+            .Where(x => !x.IsPaid)
+            .OrderBy(x => x.DueDate)
+            .ToList();
+
+        _logger.LogInformation(
+            "Próximos compromisos consultados. UserId: {UserId}, Count: {Count}",
+            userId,
+            upcoming.Count);
+
+        return upcoming;
     }
 
     public async Task<CommitmentResponse?> GetByIdAsync(
@@ -77,6 +151,22 @@ public class CommitmentsService
             return null;
 
         return Map(commitment);
+    }
+
+    public async Task<decimal> GetPendingTotalAsync(string userId)
+    {
+        var commitments = await _repository.GetByUserAsync(userId);
+
+        var total = commitments
+            .Where(c => c.IsActive)
+            .Sum(c => c.Amount);
+
+        _logger.LogInformation(
+            "Balance pendiente calculado. UserId: {UserId}, Total: {Total}",
+            userId,
+            total);
+
+        return total;
     }
 
     public async Task<CommitmentResponse?> UpdateAsync(
@@ -92,7 +182,7 @@ public class CommitmentsService
         commitment.Name = request.Name;
         commitment.Category = request.Category;
         commitment.Amount = request.Amount;
-        commitment.DayOfMonth = request.DayOfMonth;
+        commitment.PaymentDate = request.PaymentDate;
         commitment.IsActive = request.IsActive;
 
         await _repository.UpdateAsync(commitment);
@@ -126,7 +216,8 @@ public class CommitmentsService
 
     public async Task<CommitmentResponse?> PayCommitmentAsync(
         string id,
-        string userId)
+        string userId,
+        FluyoV2.Features.Commitments.Dtos.PayCommitmentRequest? request)
     {
         var commitment = await _repository.GetByIdAsync(id);
 
@@ -140,8 +231,23 @@ public class CommitmentsService
             return null;
         }
 
+        var accountIdToUse = request?.AccountId;
+        if (string.IsNullOrEmpty(accountIdToUse))
+            accountIdToUse = commitment.AccountId;
+
+        if (string.IsNullOrEmpty(accountIdToUse))
+        {
+            _logger.LogWarning(
+                "No se especificó cuenta para pagar el compromiso. UserId: {UserId}, CommitmentId: {CommitmentId}",
+                userId,
+                id);
+
+            throw new BusinessException(
+                "Debe seleccionar una cuenta para pagar el compromiso");
+        }
+
         var account = await _accountsRepository.GetByIdAsync(
-            commitment.AccountId,
+            accountIdToUse,
             userId);
 
         if (account is null)
@@ -154,13 +260,15 @@ public class CommitmentsService
             return null;
         }
 
+        // determine payment date (use provided one or now)
+        var paymentDate = request?.PaymentDate ?? DateTime.UtcNow;
+
         if (commitment.LastPaymentDate.HasValue)
         {
             var lastPayment = commitment.LastPaymentDate.Value;
-            var currentDate = DateTime.UtcNow;
 
-            if (lastPayment.Month == currentDate.Month &&
-                lastPayment.Year == currentDate.Year)
+            if (lastPayment.Month == paymentDate.Month &&
+                lastPayment.Year == paymentDate.Year)
             {
                 _logger.LogWarning(
                     "Compromiso ya pagado este mes. UserId: {UserId}, CommitmentId: {CommitmentId}",
@@ -198,21 +306,24 @@ public class CommitmentsService
             Category = commitment.Category,
             Type = TransactionTypes.Expense,
             Amount = commitment.Amount,
-            Description = $"Pago automático: {commitment.Name}"
+            Description = $"Pago automático: {commitment.Name}",
+            TransactionDate = paymentDate
         };
 
         await _transactionsRepository.CreateAsync(transaction);
 
-        commitment.LastPaymentDate = DateTime.UtcNow;
+        commitment.LastPaymentDate = paymentDate;
 
-        await _repository.UpdateAsync(commitment);
+        // after creating the transaction, remove the commitment from pending list
+        await _repository.DeleteAsync(commitment.Id);
 
         _logger.LogInformation(
-            "Compromiso pagado. UserId: {UserId}, CommitmentId: {CommitmentId}, Amount: {Amount}",
+            "Compromiso pagado y eliminado. UserId: {UserId}, CommitmentId: {CommitmentId}, Amount: {Amount}",
             userId,
             commitment.Id,
             commitment.Amount);
 
+        // return the commitment info that was paid
         return Map(commitment);
     }
 
@@ -226,8 +337,9 @@ public class CommitmentsService
             Name = commitment.Name,
             Category = commitment.Category,
             Amount = commitment.Amount,
-            DayOfMonth = commitment.DayOfMonth,
+            PaymentDate = commitment.PaymentDate,
             IsActive = commitment.IsActive,
+            Notes = commitment.Notes ?? string.Empty,
             LastPaymentDate = commitment.LastPaymentDate,
             CreatedAt = commitment.CreatedAt
         };
