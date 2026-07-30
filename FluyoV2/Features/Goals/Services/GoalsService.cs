@@ -71,11 +71,11 @@ public class GoalsService : IGoalsService
         {
             var resp = Map(g);
             resp.CurrentAmount = totalBalance;
-            resp.RemainingAmount = totalBalance - resp.TargetAmount;
+            resp.RemainingAmount = Math.Max(0, resp.TargetAmount - totalBalance);
             resp.ProgressPercentage =
                 resp.TargetAmount == 0
                     ? 0
-                    : Math.Round((resp.CurrentAmount / resp.TargetAmount) * 100, 2);
+                    : Math.Round((totalBalance / resp.TargetAmount) * 100, 2);
             return resp;
         }).ToList();
     }
@@ -98,7 +98,7 @@ public class GoalsService : IGoalsService
 
         var resp = Map(goal);
         resp.CurrentAmount = await _accountsRepository.GetTotalBalanceAsync(userId);
-        resp.RemainingAmount = resp.CurrentAmount - resp.TargetAmount;
+        resp.RemainingAmount = Math.Max(0, resp.CurrentAmount - resp.TargetAmount);
         resp.ProgressPercentage =
             resp.TargetAmount == 0
                 ? 0
@@ -138,7 +138,7 @@ public class GoalsService : IGoalsService
 
         var resp = Map(goal);
         resp.CurrentAmount = await _accountsRepository.GetTotalBalanceAsync(userId);
-        resp.RemainingAmount = resp.CurrentAmount - resp.TargetAmount;
+        resp.RemainingAmount = Math.Max(0, resp.CurrentAmount - resp.TargetAmount);
         resp.ProgressPercentage =
             resp.TargetAmount == 0
                 ? 0
@@ -201,6 +201,7 @@ public class GoalsService : IGoalsService
 
         var resp = Map(goal);
         resp.CurrentAmount = await _accountsRepository.GetTotalBalanceAsync(userId);
+        resp.RemainingAmount = Math.Max(0, resp.CurrentAmount - resp.TargetAmount);
         resp.ProgressPercentage =
             resp.TargetAmount == 0
                 ? 0
@@ -218,7 +219,7 @@ public class GoalsService : IGoalsService
             TargetAmount = goal.TargetAmount,
             IsCompleted = goal.IsCompleted,
             CurrentAmount = goal.CurrentAmount,
-            RemainingAmount = goal.CurrentAmount - goal.TargetAmount,
+            RemainingAmount = Math.Max(0, goal.CurrentAmount - goal.TargetAmount),
             TargetDate = goal.TargetDate,
             ProgressPercentage =
                 goal.TargetAmount == 0
