@@ -85,7 +85,7 @@ public class DashboardService
             MonthlyCommitments = monthlyCommitments,
             AvailableBalance = totalBalance - monthlyCommitments,
             DebtsTotal = debtsTotal,
-            CurrentAvailableAfterDebts = totalBalance - debtsTotal - monthlyCommitments,
+            CurrentAvailableAfterDebts = totalBalance - debtsTotal,
             ActiveGoals = activeGoals,
 
             IncomeThisMonth = incomeThisMonth,
