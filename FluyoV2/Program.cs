@@ -123,6 +123,12 @@ builder.Services.AddSingleton<MongoDbContext>();
 builder.Services.AddScoped<AuthRepository>();
 builder.Services.AddScoped<AuthService>();
 
+// Email settings and service
+builder.Services.Configure<FluyoV2.Settings.EmailSettings>(
+    builder.Configuration.GetSection("EmailSettings"));
+
+builder.Services.AddScoped<FluyoV2.Services.IEmailService, FluyoV2.Services.EmailService>();
+
 builder.Services.AddScoped<AccountsRepository>();
 builder.Services.AddScoped<AccountsService>();
 
