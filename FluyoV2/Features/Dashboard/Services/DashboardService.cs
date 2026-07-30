@@ -54,9 +54,10 @@ public class DashboardService
             .Where(t => t.Type == "Expense" && t.TransactionDate >= monthStart && t.Category != "Transferencia")
             .Sum(t => t.Amount);
 
-        var debtsTotal = allTransactions
-            .Where(t => t.Type == "Expense" && t.Category != "Transferencia")
-            .Sum(t => t.Amount);
+        // Debt total should come from active commitments (pending obligations)
+        var debtsTotal = commitments
+            .Where(x => x.IsActive)
+            .Sum(x => x.Amount);
 
         var totalBalance = accounts.Sum(x => x.Balance);
 
