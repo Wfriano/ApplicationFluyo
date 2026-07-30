@@ -71,7 +71,7 @@ public class GoalsService : IGoalsService
         {
             var resp = Map(g);
             resp.CurrentAmount = totalBalance;
-            resp.RemainingAmount = resp.CurrentAmount - resp.TargetAmount;
+            resp.RemainingAmount = totalBalance - resp.TargetAmount;
             resp.ProgressPercentage =
                 resp.TargetAmount == 0
                     ? 0
