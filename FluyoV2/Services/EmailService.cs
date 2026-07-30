@@ -54,7 +54,7 @@ public class EmailService : IEmailService
         catch (Exception ex)
         {
             // Log full exception with stack trace and inner exceptions
-            _logger.LogError(ex, "Failed to send email to {ToEmail} via SMTP {Host}:{Port}", _settings.SmtpHost, _settings.SmtpPort);
+            _logger.LogError(ex, "Failed to send email to {ToEmail} via SMTP {Host}:{Port}", toEmail, _settings.SmtpHost, _settings.SmtpPort);
 
             // Throw a concise error message (details are in logs)
             throw new Exception("Failure sending mail.");
