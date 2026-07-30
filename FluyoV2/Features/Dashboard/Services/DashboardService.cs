@@ -97,6 +97,8 @@ public class DashboardService
             DaysUntilNextIncome = nextIncome is null ? null : (int?)( (nextIncome.NextDate.Date - DateTime.UtcNow.Date).Days ),
             AmountUntilNextIncome = nextIncome is null ? null : Math.Max(0, nextIncome.Amount - (totalBalance - monthlyCommitments - debtsTotal))
         };
+        // Percentage of CurrentAvailableAfterDebts relative to TotalBalance, rounded to 2 decimals. Guard against division by zero.
+        result.CurrentAvailableAfterDebtsPercentage = totalBalance == 0m ? 0m : Math.Round((result.CurrentAvailableAfterDebts / totalBalance) * 100m, 2);
 
         _logger.LogInformation(
             "Dashboard consultado. UserId: {UserId}, TotalBalance: {TotalBalance}, MonthlyCommitments: {MonthlyCommitments}",

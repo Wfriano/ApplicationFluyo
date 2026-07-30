@@ -32,6 +32,9 @@ public class DashboardSummaryResponse
     // Available after subtracting debts and monthly commitments
     public decimal CurrentAvailableAfterDebts { get; set; }
 
+    // Percentage of CurrentAvailableAfterDebts over TotalBalance (0-100)
+    public decimal CurrentAvailableAfterDebtsPercentage { get; set; }
+
     // Upcoming scheduled income (from recurrences)
     public DateTime? NextIncomeDate { get; set; }
     public decimal? NextIncomeAmount { get; set; }
