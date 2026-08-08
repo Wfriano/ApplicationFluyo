@@ -26,8 +26,17 @@ public class DashboardSummaryResponse
     // Net position: incomes - expenses
     public decimal NetPosition { get; set; }
 
-    // Total debts (expenses) excluding transfers
+    // Total debts from liabilities
     public decimal DebtsTotal { get; set; }
+
+    // Total assets (lo que tienes)
+    public decimal AssetsTotal { get; set; }
+
+    // Total liabilities (lo que debes)
+    public decimal LiabilitiesTotal { get; set; }
+
+    // Net worth = AssetsTotal - LiabilitiesTotal
+    public decimal NetWorth { get; set; }
 
     // Available after subtracting debts and monthly commitments
     public decimal CurrentAvailableAfterDebts { get; set; }

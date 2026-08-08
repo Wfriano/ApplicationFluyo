@@ -22,18 +22,15 @@ public class RecurrencesService
         string userId,
         CreateRecurrenceRequest request)
     {
-        // parse frequency
         if (!Enum.TryParse<Frequency>(request.Frequency, ignoreCase: true, out var frequency))
-        {
             throw new ArgumentException("Frequency is invalid");
-        }
 
         var recurrence = new Recurrence
         {
             TransactionId = request.TransactionId,
             UserId = userId,
             Frequency = frequency,
-            NextDate = request.NextDate,
+            NextDate = FirstDayOfSelectedMonthUtc(request.NextDate),
             EndDate = request.EndDate,
             Amount = request.Amount,
             Type = request.Type,
@@ -47,7 +44,11 @@ public class RecurrencesService
 
         await _repository.CreateAsync(recurrence);
 
-        _logger.LogInformation("Recurrence created. UserId: {UserId}, TransactionId: {TransactionId}", userId, request.TransactionId);
+        _logger.LogInformation(
+            "Recurrence created. UserId: {UserId}, TransactionId: {TransactionId}, NextDate: {NextDate}",
+            userId,
+            request.TransactionId,
+            recurrence.NextDate);
 
         return Map(recurrence);
     }
@@ -79,7 +80,7 @@ public class RecurrencesService
             throw new ArgumentException("Frequency is invalid");
 
         recurrence.Frequency = frequency;
-        recurrence.NextDate = request.NextDate;
+        recurrence.NextDate = FirstDayOfSelectedMonthUtc(request.NextDate);
         recurrence.EndDate = request.EndDate;
         recurrence.Amount = request.Amount;
         recurrence.Type = request.Type;
@@ -95,7 +96,6 @@ public class RecurrencesService
 
     public async Task DeleteAsync(string userId, string id)
     {
-        // fetch recurrence to verify ownership
         var items = await _repository.GetByUserAsync(userId);
         var rec = items.FirstOrDefault(x => x.Id == id);
 
@@ -103,6 +103,22 @@ public class RecurrencesService
             throw new ArgumentException("Recurrence not found or unauthorized");
 
         await _repository.DeleteAsync(id);
+    }
+
+    private static DateTime FirstDayOfSelectedMonthUtc(DateTime selected)
+    {
+        var source = selected == default
+            ? DateTime.UtcNow.AddMonths(1)
+            : selected;
+
+        return new DateTime(
+            source.Year,
+            source.Month,
+            1,
+            0,
+            0,
+            0,
+            DateTimeKind.Utc);
     }
 
     private static RecurrenceResponse Map(Recurrence r)

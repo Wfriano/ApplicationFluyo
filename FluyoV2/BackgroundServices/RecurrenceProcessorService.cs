@@ -1,10 +1,12 @@
-using FluyoV2.Features.Transactions.Repositories;
-using FluyoV2.Features.Transactions.Models;
-using FluyoV2.Features.Transactions.Services;
+using FluyoV2.Constants;
 using FluyoV2.Features.Accounts.Repositories;
+using FluyoV2.Features.Commitments.Models;
+using FluyoV2.Features.Commitments.Repositories;
+using FluyoV2.Features.Transactions.Models;
+using FluyoV2.Features.Transactions.Repositories;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace FluyoV2.BackgroundServices;
 
@@ -13,7 +15,9 @@ public class RecurrenceProcessorService : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<RecurrenceProcessorService> _logger;
 
-    public RecurrenceProcessorService(IServiceScopeFactory scopeFactory, ILogger<RecurrenceProcessorService> logger)
+    public RecurrenceProcessorService(
+        IServiceScopeFactory scopeFactory,
+        ILogger<RecurrenceProcessorService> logger)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
@@ -28,54 +32,84 @@ public class RecurrenceProcessorService : BackgroundService
             try
             {
                 var now = DateTime.UtcNow;
-                using var scope = _scopeFactory.CreateScope();
-                var _recurrencesRepository = scope.ServiceProvider.GetRequiredService<RecurrencesRepository>();
-                var _transactionsRepository = scope.ServiceProvider.GetRequiredService<TransactionsRepository>();
-                var _accountsRepository = scope.ServiceProvider.GetRequiredService<AccountsRepository>();
 
-                var due = await _recurrencesRepository.GetDueRecurrencesAsync(now);
-
-                foreach (var rec in due)
+                if (now.Day == 1)
                 {
-                    // check end date
-                    if (rec.EndDate.HasValue && rec.EndDate.Value < now)
-                    {
-                        // skip or delete
-                        continue;
-                    }
+                    using var scope = _scopeFactory.CreateScope();
+                    var recurrencesRepository = scope.ServiceProvider.GetRequiredService<RecurrencesRepository>();
+                    var commitmentsRepository = scope.ServiceProvider.GetRequiredService<CommitmentsRepository>();
+                    var transactionsRepository = scope.ServiceProvider.GetRequiredService<TransactionsRepository>();
+                    var accountsRepository = scope.ServiceProvider.GetRequiredService<AccountsRepository>();
 
-                    // create transaction
-                    var tx = new Transaction
-                    {
-                        UserId = rec.UserId,
-                        AccountId = rec.AccountId,
-                        Category = rec.Category,
-                        Type = rec.Type,
-                        Amount = rec.Amount,
-                        Description = rec.Description,
-                        TransactionDate = rec.NextDate
-                    };
+                    var due = await recurrencesRepository.GetDueRecurrencesAsync(now);
 
-                    await _transactionsRepository.CreateAsync(tx);
-
-                    // update account balance
-                    var account = await _accountsRepository.GetByIdAsync(rec.AccountId, rec.UserId);
-                    if (account != null)
+                    foreach (var rec in due)
                     {
-                        if (string.Equals(rec.Type, "Income", StringComparison.OrdinalIgnoreCase))
-                            account.Balance += rec.Amount;
+                        if (rec.EndDate.HasValue && rec.EndDate.Value.Date < now.Date)
+                            continue;
+
+                        if (string.Equals(rec.Type, TransactionTypes.Income, StringComparison.OrdinalIgnoreCase))
+                        {
+                            var transaction = new Transaction
+                            {
+                                UserId = rec.UserId,
+                                AccountId = rec.AccountId,
+                                Category = rec.Category,
+                                Type = TransactionTypes.Income,
+                                Amount = rec.Amount,
+                                Description = rec.Description,
+                                TransactionDate = now.Date
+                            };
+
+                            await transactionsRepository.CreateAsync(transaction);
+
+                            var account = await accountsRepository.GetByIdAsync(rec.AccountId, rec.UserId);
+                            if (account is not null)
+                            {
+                                account.Balance += rec.Amount;
+                                await accountsRepository.UpdateBalanceAsync(account.Id, account.Balance);
+                            }
+
+                            _logger.LogInformation(
+                                "Recurrence converted to income movement. RecurrenceId: {RecurrenceId}, UserId: {UserId}",
+                                rec.Id,
+                                rec.UserId);
+                        }
                         else
-                            account.Balance -= rec.Amount;
+                        {
+                            var marker = $"Recurrence:{rec.Id}:{now:yyyy-MM}";
 
-                        await _accountsRepository.UpdateBalanceAsync(account.Id, account.Balance);
+                            var existing = (await commitmentsRepository.GetByUserAsync(rec.UserId))
+                                .FirstOrDefault(x => x.Notes == marker && x.IsActive);
+
+                            if (existing is null)
+                            {
+                                var commitment = new Commitment
+                                {
+                                    UserId = rec.UserId,
+                                    Name = string.IsNullOrWhiteSpace(rec.Description)
+                                        ? $"Compromiso recurrente {rec.Category}"
+                                        : rec.Description,
+                                    Category = string.IsNullOrWhiteSpace(rec.Category)
+                                        ? "Compromiso pendiente"
+                                        : rec.Category,
+                                    Amount = rec.Amount,
+                                    PaymentDate = now.Date,
+                                    Notes = marker
+                                };
+
+                                await commitmentsRepository.CreateAsync(commitment);
+                            }
+
+                            _logger.LogInformation(
+                                "Recurrence converted to pending commitment. RecurrenceId: {RecurrenceId}, UserId: {UserId}",
+                                rec.Id,
+                                rec.UserId);
+                        }
+
+                        rec.NextDate = FirstDayOfNextMonthUtc(now);
+                        await recurrencesRepository.UpdateAsync(rec);
                     }
-
-                    // advance next date according to frequency
-                    rec.NextDate = CalculateNext(rec.NextDate, rec.Frequency);
-
-                    await _recurrencesRepository.UpdateAsync(rec);
-
-                    _logger.LogInformation("Processed recurrence {RecId} for user {UserId}", rec.Id, rec.UserId);
                 }
             }
             catch (Exception ex)
@@ -83,19 +117,19 @@ public class RecurrenceProcessorService : BackgroundService
                 _logger.LogError(ex, "Error processing recurrences");
             }
 
-            // Wait one minute before next check (adjust as needed)
             await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
         }
     }
 
-    private static DateTime CalculateNext(DateTime current, Frequency freq)
+    private static DateTime FirstDayOfNextMonthUtc(DateTime reference)
     {
-        return freq switch
-        {
-            Frequency.Semanal => current.AddDays(7),
-            Frequency.Quincenal => current.AddDays(15),
-            Frequency.Mensual => current.AddMonths(1),
-            _ => current.AddMonths(1)
-        };
+        return new DateTime(
+            reference.Year,
+            reference.Month,
+            1,
+            0,
+            0,
+            0,
+            DateTimeKind.Utc).AddMonths(1);
     }
 }

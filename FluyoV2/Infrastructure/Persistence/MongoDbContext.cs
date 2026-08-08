@@ -1,8 +1,9 @@
 ﻿using FluyoV2.Features.Accounts.Models;
+using FluyoV2.Features.Assets.Models;
 using FluyoV2.Features.Auth.Models;
 using FluyoV2.Features.Commitments.Models;
 using FluyoV2.Features.Goals.Models;
-using FluyoV2.Features.Transactions.Models;
+using FluyoV2.Features.Liabilities.Models;
 using FluyoV2.Features.Transactions.Models;
 using FluyoV2.Features.Transfers.Models;
 using FluyoV2.Settings;
@@ -48,6 +49,12 @@ public class MongoDbContext
     public IMongoCollection<Commitment> Commitments =>
         _database.GetCollection<Commitment>("Commitments");
 
+    public IMongoCollection<Asset> Assets =>
+        _database.GetCollection<Asset>("Assets");
+
+    public IMongoCollection<Liability> Liabilities =>
+        _database.GetCollection<Liability>("Liabilities");
+
     public IMongoCollection<Transfer> Transfers =>
-    _database.GetCollection<Transfer>("Transfers");
+        _database.GetCollection<Transfer>("Transfers");
 }

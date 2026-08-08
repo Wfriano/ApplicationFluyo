@@ -3,6 +3,8 @@ using FluyoV2.Features.Accounts.Repositories;
 using FluyoV2.Features.Accounts.Services;
 using FluyoV2.Features.Auth.Repositories;
 using FluyoV2.Features.Auth.Services;
+using FluyoV2.Features.Assets.Repositories;
+using FluyoV2.Features.Assets.Services;
 using FluyoV2.Features.Categories.Services;
 using FluyoV2.Features.Commitments.Repositories;
 using FluyoV2.Features.Commitments.Services;
@@ -10,6 +12,8 @@ using FluyoV2.Features.Dashboard.Services;
 using FluyoV2.Features.Goals.Interfaces;
 using FluyoV2.Features.Goals.Repositories;
 using FluyoV2.Features.Goals.Services;
+using FluyoV2.Features.Liabilities.Repositories;
+using FluyoV2.Features.Liabilities.Services;
 using FluyoV2.Features.Transactions.Repositories;
 using FluyoV2.Features.Transactions.Services;
 using FluyoV2.Features.Transfers.Repositories;
@@ -152,6 +156,12 @@ builder.Services.AddScoped<IGoalsService, GoalsService>();
 
 builder.Services.AddScoped<CommitmentsRepository>();
 builder.Services.AddScoped<CommitmentsService>();
+
+builder.Services.AddScoped<AssetsRepository>();
+builder.Services.AddScoped<AssetsService>();
+
+builder.Services.AddScoped<LiabilitiesRepository>();
+builder.Services.AddScoped<LiabilitiesService>();
 
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();

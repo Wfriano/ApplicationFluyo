@@ -1,7 +1,9 @@
 ﻿using FluyoV2.Features.Accounts.Repositories;
+using FluyoV2.Features.Assets.Repositories;
 using FluyoV2.Features.Commitments.Repositories;
 using FluyoV2.Features.Dashboard.Dtos;
 using FluyoV2.Features.Goals.Repositories;
+using FluyoV2.Features.Liabilities.Repositories;
 using FluyoV2.Features.Transactions.Repositories;
 using Microsoft.Extensions.Logging;
 
@@ -13,6 +15,8 @@ public class DashboardService
     private readonly TransactionsRepository _transactionsRepository;
     private readonly CommitmentsRepository _commitmentsRepository;
     private readonly GoalsRepository _goalsRepository;
+    private readonly AssetsRepository _assetsRepository;
+    private readonly LiabilitiesRepository _liabilitiesRepository;
     private readonly FluyoV2.Features.Transactions.Repositories.RecurrencesRepository _recurrencesRepository;
     private readonly ILogger<DashboardService> _logger;
 
@@ -21,6 +25,8 @@ public class DashboardService
         TransactionsRepository transactionsRepository,
         CommitmentsRepository commitmentsRepository,
         GoalsRepository goalsRepository,
+        AssetsRepository assetsRepository,
+        LiabilitiesRepository liabilitiesRepository,
         FluyoV2.Features.Transactions.Repositories.RecurrencesRepository recurrencesRepository,
         ILogger<DashboardService> logger)
     {
@@ -28,6 +34,8 @@ public class DashboardService
         _transactionsRepository = transactionsRepository;
         _commitmentsRepository = commitmentsRepository;
         _goalsRepository = goalsRepository;
+        _assetsRepository = assetsRepository;
+        _liabilitiesRepository = liabilitiesRepository;
         _recurrencesRepository = recurrencesRepository;
         _logger = logger;
     }
@@ -39,6 +47,8 @@ public class DashboardService
         var commitments = await _commitmentsRepository.GetByUserAsync(userId);
         var goals = await _goalsRepository.GetByUserAsync(userId);
         var recurrences = await _recurrencesRepository.GetByUserAsync(userId);
+        var assets = await _assetsRepository.GetByUserAsync(userId);
+        var liabilities = await _liabilitiesRepository.GetByUserAsync(userId);
 
         var allTransactions = await _transactionsRepository.GetByUserAsync(userId);
 
@@ -54,12 +64,19 @@ public class DashboardService
             .Where(t => t.Type == "Expense" && t.TransactionDate >= monthStart && t.Category != "Transferencia")
             .Sum(t => t.Amount);
 
-        // Debt total should come from active commitments (pending obligations)
-        var debtsTotal = commitments
+        var assetsTotal = assets
             .Where(x => x.IsActive)
-            .Sum(x => x.Amount);
+            .Sum(x => x.Value);
 
-        var totalBalance = accounts.Sum(x => x.Balance);
+        var liabilitiesTotal = liabilities
+            .Where(x => x.IsActive)
+            .Sum(x => x.TotalAmount);
+
+        // En situación actual: lo que debes viene de liabilities
+        var debtsTotal = liabilitiesTotal;
+
+        // TotalBalance se alinea con patrimonio neto para "Tu situación actual"
+        var totalBalance = assetsTotal - liabilitiesTotal;
 
         var monthlyCommitments = commitments
             .Where(x => x.IsActive)
@@ -85,7 +102,10 @@ public class DashboardService
             MonthlyCommitments = monthlyCommitments,
             AvailableBalance = totalBalance - monthlyCommitments,
             DebtsTotal = debtsTotal,
-            CurrentAvailableAfterDebts = totalBalance - debtsTotal,
+            AssetsTotal = assetsTotal,
+            LiabilitiesTotal = liabilitiesTotal,
+            NetWorth = assetsTotal - liabilitiesTotal,
+            CurrentAvailableAfterDebts = totalBalance,
             ActiveGoals = activeGoals,
 
             IncomeThisMonth = incomeThisMonth,
@@ -94,8 +114,8 @@ public class DashboardService
 
             NextIncomeDate = nextIncome?.NextDate,
             NextIncomeAmount = nextIncome?.Amount,
-            DaysUntilNextIncome = nextIncome is null ? null : (int?)( (nextIncome.NextDate.Date - DateTime.UtcNow.Date).Days ),
-            AmountUntilNextIncome = nextIncome is null ? null : Math.Max(0, nextIncome.Amount - (totalBalance - monthlyCommitments - debtsTotal))
+            DaysUntilNextIncome = nextIncome is null ? null : (int?)((nextIncome.NextDate.Date - DateTime.UtcNow.Date).Days),
+            AmountUntilNextIncome = nextIncome is null ? null : Math.Max(0, nextIncome.Amount - (totalBalance - monthlyCommitments))
         };
         // Percentage of CurrentAvailableAfterDebts relative to TotalBalance, rounded to 2 decimals. Guard against division by zero.
         result.CurrentAvailableAfterDebtsPercentage = totalBalance == 0m ? 0m : Math.Round((result.CurrentAvailableAfterDebts / totalBalance) * 100m, 2);

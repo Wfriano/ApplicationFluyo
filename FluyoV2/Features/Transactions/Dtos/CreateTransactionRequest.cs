@@ -11,4 +11,12 @@ public class CreateTransactionRequest
     public string Description { get; set; } = string.Empty;
 
     public DateTime TransactionDate { get; set; }
+
+    // true => apply immediately; false => schedule for first day of selected month
+    public bool IsPaid { get; set; } = true;
+
+    // Only for category "Préstamo"
+    public int? LoanPaymentDay { get; set; }
+    public int? LoanInstallments { get; set; }
+    public decimal? LoanInstallmentAmount { get; set; }
 }

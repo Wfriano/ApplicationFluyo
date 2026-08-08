@@ -1,8 +1,9 @@
-﻿using FluyoV2.Features.Goals.Dtos;
+﻿using FluyoV2.Features.Accounts.Repositories;
+using FluyoV2.Features.Commitments.Repositories;
+using FluyoV2.Features.Goals.Dtos;
+using FluyoV2.Features.Goals.Interfaces;
 using FluyoV2.Features.Goals.Models;
 using FluyoV2.Features.Goals.Repositories;
-using FluyoV2.Features.Accounts.Repositories;
-using FluyoV2.Features.Goals.Interfaces;
 
 namespace FluyoV2.Features.Goals.Services;
 
@@ -10,15 +11,18 @@ public class GoalsService : IGoalsService
 {
     private readonly GoalsRepository _repository;
     private readonly AccountsRepository _accountsRepository;
+    private readonly CommitmentsRepository _commitmentsRepository;
     private readonly ILogger<GoalsService> _logger;
 
     public GoalsService(
         GoalsRepository repository,
         AccountsRepository accountsRepository,
+        CommitmentsRepository commitmentsRepository,
         ILogger<GoalsService> logger)
     {
         _repository = repository;
         _accountsRepository = accountsRepository;
+        _commitmentsRepository = commitmentsRepository;
         _logger = logger;
     }
 
@@ -54,8 +58,8 @@ public class GoalsService : IGoalsService
     {
         var goals = await _repository.GetByUserAsync(userId);
 
-        // Get total balance across user's accounts to use as CurrentAmount
-        var totalBalance = await _accountsRepository.GetTotalBalanceAsync(userId);
+        // Disponible = saldo total - compromisos pendientes
+        var availableBalance = await GetAvailableBalanceAsync(userId);
 
         if (isActive)
             goals = goals.Where(g => !g.IsCompleted)?.ToList();
@@ -70,12 +74,12 @@ public class GoalsService : IGoalsService
         return goals.Select(g =>
         {
             var resp = Map(g);
-            resp.CurrentAmount = totalBalance;
-            resp.RemainingAmount = Math.Max(0, resp.TargetAmount - totalBalance);
+            resp.CurrentAmount = availableBalance;
+            resp.RemainingAmount = Math.Max(0, resp.TargetAmount - availableBalance);
             resp.ProgressPercentage =
                 resp.TargetAmount == 0
                     ? 0
-                    : Math.Round((totalBalance / resp.TargetAmount) * 100, 2);
+                    : Math.Round((availableBalance / resp.TargetAmount) * 100, 2);
             return resp;
         }).ToList();
     }
@@ -97,8 +101,8 @@ public class GoalsService : IGoalsService
         }
 
         var resp = Map(goal);
-        resp.CurrentAmount = await _accountsRepository.GetTotalBalanceAsync(userId);
-        resp.RemainingAmount = Math.Max(0, resp.CurrentAmount - resp.TargetAmount);
+        resp.CurrentAmount = await GetAvailableBalanceAsync(userId);
+        resp.RemainingAmount = Math.Max(0, resp.TargetAmount - resp.CurrentAmount);
         resp.ProgressPercentage =
             resp.TargetAmount == 0
                 ? 0
@@ -137,8 +141,8 @@ public class GoalsService : IGoalsService
             id);
 
         var resp = Map(goal);
-        resp.CurrentAmount = await _accountsRepository.GetTotalBalanceAsync(userId);
-        resp.RemainingAmount = Math.Max(0, resp.CurrentAmount - resp.TargetAmount);
+        resp.CurrentAmount = await GetAvailableBalanceAsync(userId);
+        resp.RemainingAmount = Math.Max(0, resp.TargetAmount - resp.CurrentAmount);
         resp.ProgressPercentage =
             resp.TargetAmount == 0
                 ? 0
@@ -200,14 +204,26 @@ public class GoalsService : IGoalsService
             id);
 
         var resp = Map(goal);
-        resp.CurrentAmount = await _accountsRepository.GetTotalBalanceAsync(userId);
-        resp.RemainingAmount = Math.Max(0, resp.CurrentAmount - resp.TargetAmount);
+        resp.CurrentAmount = await GetAvailableBalanceAsync(userId);
+        resp.RemainingAmount = Math.Max(0, resp.TargetAmount - resp.CurrentAmount);
         resp.ProgressPercentage =
             resp.TargetAmount == 0
                 ? 0
                 : Math.Round((resp.CurrentAmount / resp.TargetAmount) * 100, 2);
 
         return resp;
+    }
+
+    private async Task<decimal> GetAvailableBalanceAsync(string userId)
+    {
+        var totalBalance = await _accountsRepository.GetTotalBalanceAsync(userId);
+        var commitments = await _commitmentsRepository.GetByUserAsync(userId);
+
+        var pendingCommitments = commitments
+            .Where(x => x.IsActive)
+            .Sum(x => x.Amount);
+
+        return totalBalance - pendingCommitments;
     }
 
     private static GoalResponse Map(Goal goal)
@@ -219,7 +235,7 @@ public class GoalsService : IGoalsService
             TargetAmount = goal.TargetAmount,
             IsCompleted = goal.IsCompleted,
             CurrentAmount = goal.CurrentAmount,
-            RemainingAmount = Math.Max(0, goal.CurrentAmount - goal.TargetAmount),
+            RemainingAmount = Math.Max(0, goal.TargetAmount - goal.CurrentAmount),
             TargetDate = goal.TargetDate,
             ProgressPercentage =
                 goal.TargetAmount == 0
