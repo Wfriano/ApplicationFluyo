@@ -29,6 +29,13 @@ public class AssetsRepository
             .ToListAsync();
     }
 
+    public async Task<List<Asset>> GetAllAsync()
+    {
+        return await _context.Assets
+            .Find(_ => true)
+            .ToListAsync();
+    }
+
     public async Task<Asset?>
         GetByIdAsync(string id)
     {

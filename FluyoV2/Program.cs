@@ -14,6 +14,8 @@ using FluyoV2.Features.Goals.Repositories;
 using FluyoV2.Features.Goals.Services;
 using FluyoV2.Features.Liabilities.Repositories;
 using FluyoV2.Features.Liabilities.Services;
+using FluyoV2.Features.Notifications.Repositories;
+using FluyoV2.Features.Notifications.Services;
 using FluyoV2.Features.Transactions.Repositories;
 using FluyoV2.Features.Transactions.Services;
 using FluyoV2.Features.Transfers.Repositories;
@@ -145,6 +147,11 @@ builder.Services.AddScoped<RecurrencesRepository>();
 builder.Services.AddScoped<RecurrencesService>();
 // Background service to process recurrences
 builder.Services.AddHostedService<FluyoV2.BackgroundServices.RecurrenceProcessorService>();
+
+builder.Services.AddScoped<NotificationsRepository>();
+builder.Services.AddScoped<NotificationsService>();
+// Background service to generate payment notifications
+builder.Services.AddHostedService<FluyoV2.BackgroundServices.NotificationsProcessorService>();
 
 builder.Services.AddScoped<TransfersRepository>();
 builder.Services.AddScoped<TransfersService>();

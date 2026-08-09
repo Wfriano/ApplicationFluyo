@@ -29,6 +29,13 @@ public class CommitmentsRepository
             .ToListAsync();
     }
 
+    public async Task<List<Commitment>> GetAllAsync()
+    {
+        return await _context.Commitments
+            .Find(_ => true)
+            .ToListAsync();
+    }
+
     public async Task<Commitment?>
         GetByIdAsync(string id)
     {

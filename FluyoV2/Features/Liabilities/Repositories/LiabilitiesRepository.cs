@@ -29,6 +29,13 @@ public class LiabilitiesRepository
             .ToListAsync();
     }
 
+    public async Task<List<Liability>> GetAllAsync()
+    {
+        return await _context.Liabilities
+            .Find(_ => true)
+            .ToListAsync();
+    }
+
     public async Task<Liability?>
         GetByIdAsync(string id)
     {
