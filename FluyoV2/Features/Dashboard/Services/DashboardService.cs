@@ -40,6 +40,64 @@ public class DashboardService
         _logger = logger;
     }
 
+    public async Task<decimal> GetAssetsPendingInstallmentsTotalAsync(string userId)
+    {
+        var assets = await _assetsRepository.GetByUserAsync(userId);
+
+        return assets
+            .Where(x => x.IsActive
+                && x.IsStillPaying
+                && x.RemainingInstallments.HasValue
+                && x.InstallmentAmount.HasValue)
+            .Sum(x => x.RemainingInstallments!.Value * x.InstallmentAmount!.Value);
+    }
+
+    public async Task<CommitmentsTotalResponse> GetCommitmentsTotalAsync(string userId)
+    {
+        var commitments = await _commitmentsRepository.GetByUserAsync(userId);
+
+        var pendingCommitmentsTotal = commitments
+            .Where(x => x.IsActive)
+            .Sum(x => x.Amount);
+
+        var assetsPendingInstallmentsTotal = await GetAssetsPendingInstallmentsTotalAsync(userId);
+
+        return new CommitmentsTotalResponse
+        {
+            PendingCommitmentsTotal = pendingCommitmentsTotal,
+            AssetsPendingInstallmentsTotal = assetsPendingInstallmentsTotal,
+            TotalToShow = pendingCommitmentsTotal + assetsPendingInstallmentsTotal
+        };
+    }
+
+    public async Task<AssetsPendingInstallmentsResponse> GetAssetsPendingInstallmentsAsync(string userId)
+    {
+        var assets = await _assetsRepository.GetByUserAsync(userId);
+
+        var items = assets
+            .Where(x => x.IsActive
+                && x.IsStillPaying
+                && x.RemainingInstallments.HasValue
+                && x.InstallmentAmount.HasValue)
+            .Select(x => new AssetPendingInstallmentItem
+            {
+                AssetId = x.Id,
+                Name = x.Name,
+                InstallmentAmount = x.InstallmentAmount!.Value,
+                RemainingInstallments = x.RemainingInstallments!.Value,
+                PendingTotal = x.InstallmentAmount.Value * x.RemainingInstallments.Value,
+                NextPaymentDate = x.NextPaymentDate
+            })
+            .OrderByDescending(x => x.PendingTotal)
+            .ToList();
+
+        return new AssetsPendingInstallmentsResponse
+        {
+            TotalPendingInstallments = items.Sum(x => x.PendingTotal),
+            Items = items
+        };
+    }
+
     public async Task<DashboardSummaryResponse> GetSummaryAsync(
         string userId)
     {
@@ -86,6 +144,8 @@ public class DashboardService
             .Where(x => x.IsActive)
             .Sum(x => x.Amount);
 
+        var commitmentsTotals = await GetCommitmentsTotalAsync(userId);
+
         // TotalBalance = suma de todas las cuentas
         var totalBalance = accounts.Sum(x => x.Balance);
 
@@ -105,8 +165,8 @@ public class DashboardService
             TotalBalance = totalBalance,
             TotalAccounts = accounts.Count,
             TotalIncome = await _transactionsRepository.GetTotalIncomeAsync(userId),
-            // TotalExpenses = suma de compromisos pendientes
-            TotalExpenses = pendingCommitments,
+            // TotalExpenses = suma de compromisos pendientes + cuotas pendientes de assets
+            TotalExpenses = commitmentsTotals.TotalToShow,
             TotalTransactions = await _transactionsRepository.GetTotalTransactionsAsync(userId),
             MonthlyCommitments = monthlyCommitments,
             AvailableBalance = totalBalance - monthlyCommitments,

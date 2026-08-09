@@ -34,4 +34,5 @@ public class DashboardController : BaseController
             result,
             "Dashboard consultado correctamente");
     }
-}
+
+    }
