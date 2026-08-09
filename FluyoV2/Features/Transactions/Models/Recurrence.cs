@@ -42,11 +42,6 @@ public class Recurrence
     // Account where the scheduled movement will be applied
     [BsonRepresentation(BsonType.ObjectId)]
     public string AccountId { get; set; } = string.Empty;
-
-    // Optional secondary account (e.g., other account control in UI)
-    [BsonRepresentation(BsonType.ObjectId)]
-    public string? OtherAccountId { get; set; }
-
     // Payment status / flag shown in UI
     public bool IsPaid { get; set; }
 

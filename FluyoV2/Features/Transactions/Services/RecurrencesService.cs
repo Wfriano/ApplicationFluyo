@@ -37,7 +37,6 @@ public class RecurrencesService
             Category = request.Category,
             Description = request.Description,
             AccountId = request.AccountId,
-            OtherAccountId = request.OtherAccountId,
             IsPaid = request.IsPaid,
             Note = request.Note ?? string.Empty
         };
@@ -87,7 +86,6 @@ public class RecurrencesService
         recurrence.Category = request.Category;
         recurrence.Description = request.Description;
         recurrence.AccountId = request.AccountId;
-        recurrence.OtherAccountId = request.OtherAccountId;
         recurrence.IsPaid = request.IsPaid;
         recurrence.Note = request.Note ?? string.Empty;
 
@@ -121,6 +119,14 @@ public class RecurrencesService
             DateTimeKind.Utc);
     }
 
+    private static string? NormalizeOptionalId(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        return value;
+    }
+
     private static RecurrenceResponse Map(Recurrence r)
     {
         return new RecurrenceResponse
@@ -136,7 +142,6 @@ public class RecurrencesService
             Category = r.Category,
             Description = r.Description,
             AccountId = r.AccountId,
-            OtherAccountId = r.OtherAccountId,
             IsPaid = r.IsPaid,
             Note = r.Note
         };
