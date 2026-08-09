@@ -173,6 +173,29 @@ public class CommitmentsController : BaseController
             "Compromiso eliminado correctamente");
     }
 
+    [HttpDelete("{id}/series")]
+    public async Task<IActionResult> DeleteSeries(
+        string id)
+    {
+        var userId = User.FindFirstValue(
+            ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrEmpty(userId))
+            return Failure("Usuario no autorizado");
+
+        var deleted = await _service.DeleteRecurringSeriesAsync(
+            id,
+            userId);
+
+        if (!deleted)
+            return NotFoundResponse(
+                "Compromiso no encontrado");
+
+        return Success(
+            true,
+            "Serie de compromisos recurrentes eliminada correctamente");
+    }
+
     [HttpPost("{id}/pay")]
     public async Task<IActionResult> Pay(
         string id,

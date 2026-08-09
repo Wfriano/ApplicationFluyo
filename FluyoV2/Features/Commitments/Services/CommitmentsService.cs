@@ -15,17 +15,20 @@ public class CommitmentsService
     private readonly CommitmentsRepository _repository;
     private readonly AccountsRepository _accountsRepository;
     private readonly TransactionsRepository _transactionsRepository;
+    private readonly RecurrencesRepository _recurrencesRepository;
     private readonly ILogger<CommitmentsService> _logger;
 
     public CommitmentsService(
         CommitmentsRepository repository,
         AccountsRepository accountsRepository,
         TransactionsRepository transactionsRepository,
+        RecurrencesRepository recurrencesRepository,
         ILogger<CommitmentsService> logger)
     {
         _repository = repository;
         _accountsRepository = accountsRepository;
         _transactionsRepository = transactionsRepository;
+        _recurrencesRepository = recurrencesRepository;
         _logger = logger;
     }
 
@@ -214,6 +217,49 @@ public class CommitmentsService
         return true;
     }
 
+    public async Task<bool> DeleteRecurringSeriesAsync(
+        string id,
+        string userId)
+    {
+        var commitment = await _repository.GetByIdAsync(id);
+
+        if (commitment is null || commitment.UserId != userId)
+            return false;
+
+        var recurrenceId = ExtractRecurrenceId(commitment.Notes);
+
+        // Elimina el compromiso actual
+        await _repository.DeleteAsync(id);
+
+        if (!string.IsNullOrWhiteSpace(recurrenceId))
+        {
+            // Elimina otros compromisos generados por la misma recurrencia
+            var userCommitments = await _repository.GetByUserAsync(userId);
+
+            var relatedCommitments = userCommitments
+                .Where(x => x.Id != id
+                    && x.IsActive
+                    && IsFromRecurrence(x.Notes, recurrenceId))
+                .ToList();
+
+            foreach (var item in relatedCommitments)
+            {
+                await _repository.DeleteAsync(item.Id);
+            }
+
+            // Elimina la configuración de recurrencia para que no vuelva a generarse a futuro
+            await _recurrencesRepository.DeleteAsync(recurrenceId);
+        }
+
+        _logger.LogInformation(
+            "Serie recurrente eliminada. UserId: {UserId}, CommitmentId: {CommitmentId}, RecurrenceId: {RecurrenceId}",
+            userId,
+            id,
+            recurrenceId ?? string.Empty);
+
+        return true;
+    }
+
     public async Task<CommitmentResponse?> PayCommitmentAsync(
         string id,
         string userId,
@@ -325,6 +371,28 @@ public class CommitmentsService
 
         // return the commitment info that was paid
         return Map(commitment);
+    }
+
+    private static bool IsFromRecurrence(string? notes, string recurrenceId)
+    {
+        return ExtractRecurrenceId(notes) == recurrenceId;
+    }
+
+    private static string? ExtractRecurrenceId(string? notes)
+    {
+        if (string.IsNullOrWhiteSpace(notes))
+            return null;
+
+        // Expected format: Recurrence:{recurrenceId}:{yyyy-MM}
+        var parts = notes.Split(':', StringSplitOptions.RemoveEmptyEntries);
+
+        if (parts.Length < 3)
+            return null;
+
+        if (!parts[0].Equals("Recurrence", StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        return parts[1];
     }
 
     private static CommitmentResponse Map(
