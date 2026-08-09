@@ -17,4 +17,10 @@ public class TransactionResponse
     public DateTime TransactionDate { get; set; }
 
     public DateTime CreatedAt { get; set; }
+
+    public bool IsRecurring { get; set; }
+
+    public DateTime? ScheduledDate { get; set; }
+
+    public RecurrenceResponse? Recurrence { get; set; }
 }

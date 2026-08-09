@@ -379,7 +379,9 @@ public class TransactionsService
         if (transaction is null || transaction.UserId != userId)
             return null;
 
-        return Map(transaction);
+        var recurrence = await _recurrencesService.GetByTransactionIdAsync(userId, transaction.Id);
+
+        return Map(transaction, recurrence);
     }
 
     public async Task UpdateAsync(string userId, UpdateTransactionRequest request)
@@ -447,16 +449,30 @@ public class TransactionsService
     public async Task<List<TransactionResponse>> GetAllAsync(string userId)
     {
         var transactions = await _repository.GetByUserAsync(userId);
+        var recurrences = await _recurrencesService.GetAllByUserAsync(userId);
 
         _logger.LogInformation(
             "Movimientos consultados. UserId: {UserId}, Total: {Total}",
             userId,
             transactions.Count);
 
-        return transactions.Select(Map).ToList();
+        var recurrencesByTransactionId = recurrences
+            .Where(x => !string.IsNullOrWhiteSpace(x.TransactionId))
+            .GroupBy(x => x.TransactionId)
+            .ToDictionary(x => x.Key, x => x.First());
+
+        return transactions
+            .Select(transaction =>
+            {
+                recurrencesByTransactionId.TryGetValue(transaction.Id, out var recurrence);
+                return Map(transaction, recurrence);
+            })
+            .ToList();
     }
 
-    private static TransactionResponse Map(Transaction transaction)
+    private static TransactionResponse Map(
+        Transaction transaction,
+        RecurrenceResponse? recurrence = null)
     {
         return new TransactionResponse
         {
@@ -467,7 +483,10 @@ public class TransactionsService
             Amount = transaction.Amount,
             Description = transaction.Description,
             TransactionDate = transaction.TransactionDate,
-            CreatedAt = transaction.CreatedAt
+            CreatedAt = transaction.CreatedAt,
+            IsRecurring = recurrence is not null,
+            ScheduledDate = recurrence?.NextDate,
+            Recurrence = recurrence
         };
     }
 }
