@@ -72,15 +72,18 @@ public class DashboardService
             .Where(x => x.IsActive)
             .Sum(x => x.TotalAmount);
 
-        // En situación actual: lo que debes viene de liabilities
+        // Deudas totales reportadas desde liabilities
         var debtsTotal = liabilitiesTotal;
 
-        // TotalBalance se alinea con patrimonio neto para "Tu situación actual"
-        var totalBalance = assetsTotal - liabilitiesTotal;
-
-        var monthlyCommitments = commitments
+        // Compromisos pendientes activos
+        var pendingCommitments = commitments
             .Where(x => x.IsActive)
             .Sum(x => x.Amount);
+
+        // TotalBalance = suma de todas las cuentas
+        var totalBalance = accounts.Sum(x => x.Balance);
+
+        var monthlyCommitments = pendingCommitments;
 
         var activeGoals = goals
             .Count(x => !x.IsCompleted);
@@ -96,8 +99,8 @@ public class DashboardService
             TotalBalance = totalBalance,
             TotalAccounts = accounts.Count,
             TotalIncome = await _transactionsRepository.GetTotalIncomeAsync(userId),
-            // Total expenses excluding transfers
-            TotalExpenses = debtsTotal,
+            // TotalExpenses = suma de compromisos pendientes
+            TotalExpenses = pendingCommitments,
             TotalTransactions = await _transactionsRepository.GetTotalTransactionsAsync(userId),
             MonthlyCommitments = monthlyCommitments,
             AvailableBalance = totalBalance - monthlyCommitments,
@@ -105,7 +108,7 @@ public class DashboardService
             AssetsTotal = assetsTotal,
             LiabilitiesTotal = liabilitiesTotal,
             NetWorth = assetsTotal - liabilitiesTotal,
-            CurrentAvailableAfterDebts = totalBalance,
+            CurrentAvailableAfterDebts = totalBalance - pendingCommitments,
             ActiveGoals = activeGoals,
 
             IncomeThisMonth = incomeThisMonth,
@@ -115,7 +118,7 @@ public class DashboardService
             NextIncomeDate = nextIncome?.NextDate,
             NextIncomeAmount = nextIncome?.Amount,
             DaysUntilNextIncome = nextIncome is null ? null : (int?)((nextIncome.NextDate.Date - DateTime.UtcNow.Date).Days),
-            AmountUntilNextIncome = nextIncome is null ? null : Math.Max(0, nextIncome.Amount - (totalBalance - monthlyCommitments))
+            AmountUntilNextIncome = nextIncome is null ? null : Math.Max(0, nextIncome.Amount - (totalBalance - pendingCommitments))
         };
         // Percentage of CurrentAvailableAfterDebts relative to TotalBalance, rounded to 2 decimals. Guard against division by zero.
         result.CurrentAvailableAfterDebtsPercentage = totalBalance == 0m ? 0m : Math.Round((result.CurrentAvailableAfterDebts / totalBalance) * 100m, 2);
