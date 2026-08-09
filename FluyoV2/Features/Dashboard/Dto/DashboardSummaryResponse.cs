@@ -51,4 +51,7 @@ public class DashboardSummaryResponse
 
     // Amount needed until next income (NextIncomeAmount - AvailableBalance)
     public decimal? AmountUntilNextIncome { get; set; }
+
+    // Unread notifications count
+    public int PendingNotificationsCount { get; set; }
 }

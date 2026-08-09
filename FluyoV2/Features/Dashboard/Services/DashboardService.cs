@@ -4,6 +4,7 @@ using FluyoV2.Features.Commitments.Repositories;
 using FluyoV2.Features.Dashboard.Dtos;
 using FluyoV2.Features.Goals.Repositories;
 using FluyoV2.Features.Liabilities.Repositories;
+using FluyoV2.Features.Notifications.Repositories;
 using FluyoV2.Features.Transactions.Repositories;
 using Microsoft.Extensions.Logging;
 
@@ -17,6 +18,7 @@ public class DashboardService
     private readonly GoalsRepository _goalsRepository;
     private readonly AssetsRepository _assetsRepository;
     private readonly LiabilitiesRepository _liabilitiesRepository;
+    private readonly NotificationsRepository _notificationsRepository;
     private readonly FluyoV2.Features.Transactions.Repositories.RecurrencesRepository _recurrencesRepository;
     private readonly ILogger<DashboardService> _logger;
 
@@ -27,6 +29,7 @@ public class DashboardService
         GoalsRepository goalsRepository,
         AssetsRepository assetsRepository,
         LiabilitiesRepository liabilitiesRepository,
+        NotificationsRepository notificationsRepository,
         FluyoV2.Features.Transactions.Repositories.RecurrencesRepository recurrencesRepository,
         ILogger<DashboardService> logger)
     {
@@ -36,6 +39,7 @@ public class DashboardService
         _goalsRepository = goalsRepository;
         _assetsRepository = assetsRepository;
         _liabilitiesRepository = liabilitiesRepository;
+        _notificationsRepository = notificationsRepository;
         _recurrencesRepository = recurrencesRepository;
         _logger = logger;
     }
@@ -107,6 +111,7 @@ public class DashboardService
         var recurrences = await _recurrencesRepository.GetByUserAsync(userId);
         var assets = await _assetsRepository.GetByUserAsync(userId);
         var liabilities = await _liabilitiesRepository.GetByUserAsync(userId);
+        var notifications = await _notificationsRepository.GetByUserAsync(userId);
 
         var allTransactions = await _transactionsRepository.GetByUserAsync(userId);
 
@@ -154,6 +159,9 @@ public class DashboardService
         var activeGoals = goals
             .Count(x => !x.IsCompleted);
 
+        var pendingNotificationsCount = notifications
+            .Count(x => !x.IsRead);
+
         // find next scheduled income recurrence
         var nextIncome = recurrences
             .Where(r => r.Type == "Income" && r.NextDate >= DateTime.UtcNow)
@@ -184,7 +192,8 @@ public class DashboardService
             NextIncomeDate = nextIncome?.NextDate,
             NextIncomeAmount = nextIncome?.Amount,
             DaysUntilNextIncome = nextIncome is null ? null : (int?)((nextIncome.NextDate.Date - DateTime.UtcNow.Date).Days),
-            AmountUntilNextIncome = nextIncome is null ? null : Math.Max(0, nextIncome.Amount - (totalBalance - pendingCommitments))
+            AmountUntilNextIncome = nextIncome is null ? null : Math.Max(0, nextIncome.Amount - (totalBalance - pendingCommitments)),
+            PendingNotificationsCount = pendingNotificationsCount
         };
         // Percentage of CurrentAvailableAfterDebts relative to TotalBalance, rounded to 2 decimals. Guard against division by zero.
         result.CurrentAvailableAfterDebtsPercentage = totalBalance == 0m ? 0m : Math.Round((result.CurrentAvailableAfterDebts / totalBalance) * 100m, 2);
