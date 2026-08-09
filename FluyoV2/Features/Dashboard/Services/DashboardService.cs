@@ -72,8 +72,14 @@ public class DashboardService
             .Where(x => x.IsActive)
             .Sum(x => x.TotalAmount);
 
-        // Deudas totales reportadas desde liabilities
-        var debtsTotal = liabilitiesTotal;
+        // Deudas patrimoniales desde assets financiados:
+        // suma de (cuotas restantes * valor cuota)
+        var debtsTotal = assets
+            .Where(x => x.IsActive
+                && x.IsStillPaying
+                && x.RemainingInstallments.HasValue
+                && x.InstallmentAmount.HasValue)
+            .Sum(x => x.RemainingInstallments!.Value * x.InstallmentAmount!.Value);
 
         // Compromisos pendientes activos
         var pendingCommitments = commitments
@@ -107,7 +113,7 @@ public class DashboardService
             DebtsTotal = debtsTotal,
             AssetsTotal = assetsTotal,
             LiabilitiesTotal = liabilitiesTotal,
-            NetWorth = assetsTotal - liabilitiesTotal,
+            NetWorth = assetsTotal - debtsTotal,
             CurrentAvailableAfterDebts = totalBalance - pendingCommitments,
             ActiveGoals = activeGoals,
 
