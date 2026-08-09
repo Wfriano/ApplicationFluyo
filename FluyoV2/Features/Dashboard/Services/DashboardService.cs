@@ -166,7 +166,7 @@ public class DashboardService
             TotalAccounts = accounts.Count,
             TotalIncome = await _transactionsRepository.GetTotalIncomeAsync(userId),
             // TotalExpenses = suma de compromisos pendientes + cuotas pendientes de assets
-            TotalExpenses = commitmentsTotals.TotalToShow,
+            TotalExpenses = pendingCommitments,
             TotalTransactions = await _transactionsRepository.GetTotalTransactionsAsync(userId),
             MonthlyCommitments = monthlyCommitments,
             AvailableBalance = totalBalance - monthlyCommitments,
