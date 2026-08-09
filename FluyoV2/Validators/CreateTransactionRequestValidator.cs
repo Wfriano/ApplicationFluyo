@@ -24,6 +24,21 @@ public class CreateTransactionRequestValidator
             .Must(x => x != default)
             .WithMessage("La fecha es obligatoria");
 
+        When(x => x.Recurrence != null, () =>
+        {
+            RuleFor(x => x.Recurrence!.Frequency)
+                .NotEmpty()
+                .WithMessage("La frecuencia de la recurrencia es obligatoria");
+
+            RuleFor(x => x.Recurrence!.NextDate)
+                .GreaterThan(DateTime.MinValue)
+                .WithMessage("La próxima fecha de recurrencia es obligatoria");
+
+            RuleFor(x => x.Recurrence!.Amount)
+                .GreaterThan(0)
+                .WithMessage("El valor de la recurrencia debe ser mayor a cero");
+        });
+
         When(x => IsLoanCategory(x.Category), () =>
         {
             RuleFor(x => x.LoanPaymentDay)

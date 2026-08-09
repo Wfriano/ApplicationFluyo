@@ -15,16 +15,16 @@ public class TransactionsController : BaseController
 {
     private readonly TransactionsService _service;
     private readonly IValidator<CreateTransactionRequest> _validator;
-    private readonly IValidator<CreateTransactionWithRecurrenceRequest> _withRecurrenceValidator;
+    private readonly IValidator<UpdateTransactionRequest> _updateValidator;
 
     public TransactionsController(
         TransactionsService service,
         IValidator<CreateTransactionRequest> validator,
-        IValidator<CreateTransactionWithRecurrenceRequest> withRecurrenceValidator)
+        IValidator<UpdateTransactionRequest> updateValidator)
     {
         _service = service;
         _validator = validator;
-        _withRecurrenceValidator = withRecurrenceValidator;
+        _updateValidator = updateValidator;
     }
 
     [HttpPost("income")]
@@ -75,23 +75,6 @@ public class TransactionsController : BaseController
 
         return Success(result, "Movimientos consultados correctamente");
     }
-    [HttpPost("with-recurrence")]
-    public async Task<IActionResult> CreateWithRecurrence(CreateTransactionWithRecurrenceRequest request)
-    {
-        // basic validation for required fields
-        if (request is null)
-            return Failure("La información enviada no es válida");
-
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        if (string.IsNullOrEmpty(userId))
-            return Failure("Usuario no autorizado");
-
-        var result = await _service.CreateWithOptionalRecurrenceAsync(userId, request);
-
-        return Success(result, "Movimiento registrado correctamente");
-    }
-
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)
     {
@@ -109,12 +92,19 @@ public class TransactionsController : BaseController
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(string id, TransactionResponse request)
+    public async Task<IActionResult> Update(string id, UpdateTransactionRequest request)
     {
+        var validation = await _updateValidator.ValidateAsync(request);
+
+        if (!validation.IsValid)
+            return Failure(validation.Errors.First().ErrorMessage);
+
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         if (string.IsNullOrEmpty(userId))
             return Failure("Usuario no autorizado");
+
+        request.Id = id;
 
         try
         {

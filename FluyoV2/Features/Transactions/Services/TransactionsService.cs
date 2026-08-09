@@ -53,10 +53,8 @@ public class TransactionsService
         if (!request.IsPaid)
         {
             var firstDayOfSelectedMonth = FirstDayOfSelectedMonthUtc(request.TransactionDate);
-
-            await _recurrencesService.CreateAsync(userId, new CreateRecurrenceRequest
+            var recurrenceRequest = request.Recurrence ?? new CreateRecurrenceRequest
             {
-                TransactionId = ObjectId.GenerateNewId().ToString(),
                 Frequency = "Mensual",
                 NextDate = firstDayOfSelectedMonth,
                 EndDate = firstDayOfSelectedMonth,
@@ -67,7 +65,15 @@ public class TransactionsService
                 AccountId = account.Id,
                 IsPaid = false,
                 Note = "Ingreso diferido por no pagado"
-            });
+            };
+
+            recurrenceRequest.TransactionId = ObjectId.GenerateNewId().ToString();
+            recurrenceRequest.Type = TransactionTypes.Income;
+            recurrenceRequest.Category = request.Category;
+            recurrenceRequest.Description = request.Description;
+            recurrenceRequest.AccountId = account.Id;
+
+            await _recurrencesService.CreateAsync(userId, recurrenceRequest);
 
             await CreateLoanLiabilityIfNeededAsync(userId, request);
 
@@ -108,6 +114,18 @@ public class TransactionsService
         };
 
         await _repository.CreateAsync(transaction);
+
+        if (request.Recurrence is not null)
+        {
+            var recReq = request.Recurrence;
+            recReq.TransactionId = transaction.Id;
+            recReq.Type = TransactionTypes.Income;
+            recReq.Category = request.Category;
+            recReq.Description = request.Description;
+            recReq.AccountId = account.Id;
+
+            await _recurrencesService.CreateAsync(userId, recReq);
+        }
 
         await CreateLoanLiabilityIfNeededAsync(userId, request);
 
@@ -200,10 +218,8 @@ public class TransactionsService
         if (!request.IsPaid)
         {
             var firstDayOfSelectedMonth = FirstDayOfSelectedMonthUtc(request.TransactionDate);
-
-            await _recurrencesService.CreateAsync(userId, new CreateRecurrenceRequest
+            var recurrenceRequest = request.Recurrence ?? new CreateRecurrenceRequest
             {
-                TransactionId = ObjectId.GenerateNewId().ToString(),
                 Frequency = "Mensual",
                 NextDate = firstDayOfSelectedMonth,
                 EndDate = firstDayOfSelectedMonth,
@@ -214,7 +230,15 @@ public class TransactionsService
                 AccountId = account.Id,
                 IsPaid = false,
                 Note = "Gasto diferido por no pagado"
-            });
+            };
+
+            recurrenceRequest.TransactionId = ObjectId.GenerateNewId().ToString();
+            recurrenceRequest.Type = TransactionTypes.Expense;
+            recurrenceRequest.Category = request.Category;
+            recurrenceRequest.Description = request.Description;
+            recurrenceRequest.AccountId = account.Id;
+
+            await _recurrencesService.CreateAsync(userId, recurrenceRequest);
 
             _logger.LogInformation(
                 "Gasto diferido programado como compromiso pendiente. UserId: {UserId}, AccountId: {AccountId}, Fecha: {Date}",
@@ -253,6 +277,18 @@ public class TransactionsService
         };
 
         await _repository.CreateAsync(transaction);
+
+        if (request.Recurrence is not null)
+        {
+            var recReq = request.Recurrence;
+            recReq.TransactionId = transaction.Id;
+            recReq.Type = TransactionTypes.Expense;
+            recReq.Category = request.Category;
+            recReq.Description = request.Description;
+            recReq.AccountId = account.Id;
+
+            await _recurrencesService.CreateAsync(userId, recReq);
+        }
 
         _logger.LogInformation(
             "Gasto registrado. UserId: {UserId}, AccountId: {AccountId}, Amount: {Amount}",
@@ -346,18 +382,57 @@ public class TransactionsService
         return Map(transaction);
     }
 
-    public async Task UpdateAsync(string userId, TransactionResponse request)
+    public async Task UpdateAsync(string userId, UpdateTransactionRequest request)
     {
         var transaction = await _repository.GetByIdAsync(request.Id);
         if (transaction is null || transaction.UserId != userId)
             throw new ArgumentException("Transaccion no encontrada o no autorizada");
 
+        transaction.AccountId = request.AccountId;
         transaction.Amount = request.Amount;
         transaction.Category = request.Category;
+        transaction.Type = request.Type;
         transaction.Description = request.Description;
         transaction.TransactionDate = request.TransactionDate;
 
         await _repository.UpdateAsync(transaction);
+
+        var existingRecurrence = await _recurrencesService.GetByTransactionIdAsync(userId, transaction.Id);
+
+        if (request.Recurrence is not null)
+        {
+            if (existingRecurrence is null)
+            {
+                var recCreate = request.Recurrence;
+                recCreate.TransactionId = transaction.Id;
+                recCreate.AccountId = request.AccountId;
+                recCreate.Type = request.Type;
+                recCreate.Category = request.Category;
+                recCreate.Description = request.Description;
+
+                await _recurrencesService.CreateAsync(userId, recCreate);
+            }
+            else
+            {
+                await _recurrencesService.UpdateAsync(userId, new RecurrenceResponse
+                {
+                    Id = existingRecurrence.Id,
+                    TransactionId = transaction.Id,
+                    Frequency = request.Recurrence.Frequency,
+                    NextDate = request.Recurrence.NextDate,
+                    EndDate = request.Recurrence.EndDate,
+                    CreatedAt = existingRecurrence.CreatedAt,
+                    Amount = request.Recurrence.Amount,
+                    Type = request.Type,
+                    Category = request.Category,
+                    Description = request.Description,
+                    AccountId = request.AccountId,
+                    OtherAccountId = request.Recurrence.OtherAccountId,
+                    IsPaid = request.Recurrence.IsPaid,
+                    Note = request.Recurrence.Note
+                });
+            }
+        }
     }
 
     public async Task DeleteAsync(string userId, string id)
