@@ -58,7 +58,7 @@ public class GoalsService : IGoalsService
     {
         var goals = await _repository.GetByUserAsync(userId);
 
-        // Disponible = saldo total - compromisos pendientes
+        // Disponible = suma de todas las cuentas - totalExpenses (compromisos pendientes)
         var availableBalance = await GetAvailableBalanceAsync(userId);
 
         if (isActive)
@@ -219,11 +219,11 @@ public class GoalsService : IGoalsService
         var totalBalance = await _accountsRepository.GetTotalBalanceAsync(userId);
         var commitments = await _commitmentsRepository.GetByUserAsync(userId);
 
-        var pendingCommitments = commitments
+        var totalExpenses = commitments
             .Where(x => x.IsActive)
             .Sum(x => x.Amount);
 
-        return totalBalance - pendingCommitments;
+        return totalBalance - totalExpenses;
     }
 
     private static GoalResponse Map(Goal goal)
