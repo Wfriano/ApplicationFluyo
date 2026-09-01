@@ -1,5 +1,6 @@
 ﻿using FluentValidation;
 using FluyoV2.Features.Commitments.Dtos;
+using System.Text.RegularExpressions;
 
 namespace FluyoV2.Validators;
 
@@ -59,6 +60,16 @@ public class CreateCommitmentRequestValidator
             RuleFor(x => x.Recurrence!.Amount)
                 .GreaterThan(0)
                 .WithMessage("El valor de la recurrencia debe ser mayor a cero");
+        });
+
+        // If recurrence is marked as paid, require a valid account id
+        When(x => x.Recurrence != null && x.Recurrence.IsPaid, () =>
+        {
+            RuleFor(x => x.Recurrence!.AccountId)
+                .NotEmpty()
+                .WithMessage("La cuenta de la recurrencia es obligatoria cuando está marcada como pagada")
+                .Must(id => !string.IsNullOrWhiteSpace(id) && System.Text.RegularExpressions.Regex.IsMatch(id, "^[0-9a-fA-F]{24}$"))
+                .WithMessage("AccountId de la recurrencia no es un ObjectId válido");
         });
     }
 }

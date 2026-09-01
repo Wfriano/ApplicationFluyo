@@ -1,5 +1,6 @@
 ﻿using FluentValidation;
 using FluyoV2.Features.Transactions.Dtos;
+using System.Text.RegularExpressions;
 
 namespace FluyoV2.Validators;
 
@@ -51,6 +52,16 @@ public class CreateTransactionRequestValidator
                 .WithMessage("El valor de la recurrencia debe ser mayor a cero");
         });
 
+        // If recurrence is marked as paid, require a valid account id
+        When(x => x.Recurrence != null && x.Recurrence.IsPaid, () =>
+        {
+            RuleFor(x => x.Recurrence!.AccountId)
+                .NotEmpty()
+                .WithMessage("La cuenta de la recurrencia es obligatoria cuando está marcada como pagada")
+                .Must(IsValidObjectId)
+                .WithMessage("AccountId de la recurrencia no es un ObjectId válido");
+        });
+
         When(x => IsLoanCategory(x.Category), () =>
         {
             RuleFor(x => x.LoanPaymentDay)
@@ -82,5 +93,13 @@ public class CreateTransactionRequestValidator
             || category.Equals("Prestamo", StringComparison.OrdinalIgnoreCase)
             || category.Equals("Prestamos", StringComparison.OrdinalIgnoreCase)
             || category.Equals("Préstamos", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsValidObjectId(string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+            return false;
+
+        return Regex.IsMatch(id, "^[0-9a-fA-F]{24}$");
     }
 }
