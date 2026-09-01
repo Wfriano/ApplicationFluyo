@@ -83,43 +83,51 @@ public class CommitmentsService
             !string.IsNullOrWhiteSpace(request.Recurrence.AccountId)
         ))
         {
-            // Validate frequency
-            if (!Enum.TryParse<FluyoV2.Features.Transactions.Models.Frequency>(request.Recurrence.Frequency, true, out var frequency))
+            try
             {
-                throw new ArgumentException("Frequency is invalid");
+                // Validate frequency
+                if (!Enum.TryParse<FluyoV2.Features.Transactions.Models.Frequency>(request.Recurrence.Frequency, true, out var frequency))
+                {
+                    throw new ArgumentException("Frequency is invalid");
+                }
+
+                var recurrence = new FluyoV2.Features.Transactions.Models.Recurrence
+                {
+                    TransactionId = string.Empty,
+                    UserId = userId,
+                    Frequency = frequency,
+                    NextDate = FirstDayOfSelectedMonthUtc(request.Recurrence.NextDate),
+                    EndDate = request.Recurrence.EndDate,
+                    Amount = request.Recurrence.Amount > 0 ? request.Recurrence.Amount : request.Amount,
+                    Type = "Expense",
+                    Category = request.Category,
+                    Description = string.IsNullOrWhiteSpace(request.Recurrence.Description) ? request.Name : request.Recurrence.Description,
+                    AccountId = request.Recurrence.AccountId ?? string.Empty,
+                    IsPaid = request.Recurrence.IsPaid,
+                    Note = request.Notes ?? string.Empty
+                };
+
+                await _recurrencesRepository.CreateAsync(recurrence);
+
+                // attach recurrence marker to the commitment notes so we can find the recurrence later
+                var marker = $"Recurrence:{recurrence.Id}:orig";
+                commitment.Notes = string.IsNullOrWhiteSpace(request.Notes)
+                    ? marker
+                    : (request.Notes + " " + marker).Trim();
+
+                await _repository.UpdateAsync(commitment);
+
+                _logger.LogInformation(
+                    "Recurrence created for commitment. UserId: {UserId}, CommitmentId: {CommitmentId}, NextDate: {NextDate}",
+                    userId,
+                    commitment.Id,
+                    recurrence.NextDate);
             }
-
-            var recurrence = new FluyoV2.Features.Transactions.Models.Recurrence
+            catch (Exception ex)
             {
-                TransactionId = string.Empty,
-                UserId = userId,
-                Frequency = frequency,
-                NextDate = FirstDayOfSelectedMonthUtc(request.Recurrence.NextDate),
-                EndDate = request.Recurrence.EndDate,
-                Amount = request.Recurrence.Amount > 0 ? request.Recurrence.Amount : request.Amount,
-                Type = "Expense",
-                Category = request.Category,
-                Description = string.IsNullOrWhiteSpace(request.Recurrence.Description) ? request.Name : request.Recurrence.Description,
-                AccountId = request.Recurrence.AccountId ?? string.Empty,
-                IsPaid = request.Recurrence.IsPaid,
-                Note = request.Notes ?? string.Empty
-            };
-
-            await _recurrencesRepository.CreateAsync(recurrence);
-
-            // attach recurrence marker to the commitment notes so we can find the recurrence later
-            var marker = $"Recurrence:{recurrence.Id}:orig";
-            commitment.Notes = string.IsNullOrWhiteSpace(request.Notes)
-                ? marker
-                : (request.Notes + " " + marker).Trim();
-
-            await _repository.UpdateAsync(commitment);
-
-            _logger.LogInformation(
-                "Recurrence created for commitment. UserId: {UserId}, CommitmentId: {CommitmentId}, NextDate: {NextDate}",
-                userId,
-                commitment.Id,
-                recurrence.NextDate);
+                _logger.LogError(ex, "Failed to create recurrence for commitment. UserId: {UserId}, CommitmentId: {CommitmentId}", userId, commitment.Id);
+                // swallow exception so commitment creation still succeeds; client can retry recurrence creation separately
+            }
         }
 
         return Map(commitment);

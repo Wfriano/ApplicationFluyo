@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace FluyoV2.Features.Transactions.Dtos;
 
-public class CreateRecurrenceRequestJsonConverter : JsonConverter<CreateRecurrenceRequest>
+public class CreateRecurrenceRequestJsonConverter : JsonConverter<CreateRecurrenceRequest?>
 {
     public override CreateRecurrenceRequest? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
@@ -14,18 +14,26 @@ public class CreateRecurrenceRequestJsonConverter : JsonConverter<CreateRecurren
         if (reader.TokenType == JsonTokenType.False || reader.TokenType == JsonTokenType.True)
         {
             // treat boolean false/true as absence of recurrence
-            // consume the boolean value
             _ = reader.GetBoolean();
             return null;
         }
 
         if (reader.TokenType == JsonTokenType.StartObject)
         {
-            // delegate to default deserialization for the object
-            return JsonSerializer.Deserialize<CreateRecurrenceRequest?>(ref reader, options);
+            // parse object into a JsonDocument to avoid recursive converter calls
+
+            using var doc = JsonDocument.ParseValue(ref reader);
+            var json = doc.RootElement.GetRawText();
+
+            // use a new options instance without this converter to avoid recursion
+            var newOptions = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = options.PropertyNameCaseInsensitive
+            };
+
+            return JsonSerializer.Deserialize<CreateRecurrenceRequest?>(json, newOptions);
         }
 
-        // Unexpected token
         throw new JsonException($"Unable to convert JSON token {reader.TokenType} to CreateRecurrenceRequest");
     }
 
@@ -33,11 +41,16 @@ public class CreateRecurrenceRequestJsonConverter : JsonConverter<CreateRecurren
     {
         if (value is null)
         {
-            // write boolean false to keep compatibility with clients that expect false
             writer.WriteBooleanValue(false);
             return;
         }
 
-        JsonSerializer.Serialize(writer, value, options);
+        // serialize using a fresh options instance to avoid calling this converter again
+        var newOptions = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = options.PropertyNameCaseInsensitive
+        };
+
+        JsonSerializer.Serialize(writer, value, newOptions);
     }
 }
