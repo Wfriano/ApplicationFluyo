@@ -78,9 +78,18 @@ public class RecurrenceProcessorService : BackgroundService
                         else
                         {
                             var marker = $"Recurrence:{rec.Id}:{now:yyyy-MM}";
+                            var recurrencePrefix = $"Recurrence:{rec.Id}:";
 
-                            var existing = (await commitmentsRepository.GetByUserAsync(rec.UserId))
-                                .FirstOrDefault(x => x.Notes == marker && x.IsActive);
+                            var userCommitments = await commitmentsRepository.GetByUserAsync(rec.UserId);
+
+                            var existing = userCommitments
+                                .FirstOrDefault(x =>
+                                    x.IsActive
+                                    && x.PaymentDate.HasValue
+                                    && x.PaymentDate.Value.Year == now.Year
+                                    && x.PaymentDate.Value.Month == now.Month
+                                    && !string.IsNullOrWhiteSpace(x.Notes)
+                                    && x.Notes.Contains(recurrencePrefix, StringComparison.OrdinalIgnoreCase));
 
                             if (existing is null)
                             {
