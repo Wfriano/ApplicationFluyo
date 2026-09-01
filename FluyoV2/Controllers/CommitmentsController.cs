@@ -4,6 +4,8 @@ using FluyoV2.Features.Commitments.Dtos;
 using FluyoV2.Features.Commitments.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using System.Text.Json;
 using System.Security.Claims;
 
 namespace FluyoV2.Controllers;
@@ -15,40 +17,63 @@ public class CommitmentsController : BaseController
     private readonly CommitmentsService _service;
     private readonly IValidator<CreateCommitmentRequest> _createValidator;
     private readonly IValidator<UpdateCommitmentRequest> _updateValidator;
+    private readonly ILogger<CommitmentsController> _logger;
 
     public CommitmentsController(
         CommitmentsService service,
         IValidator<CreateCommitmentRequest> createValidator,
-        IValidator<UpdateCommitmentRequest> updateValidator)
+        IValidator<UpdateCommitmentRequest> updateValidator,
+        ILogger<CommitmentsController> logger)
     {
         _service = service;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
+        _logger = logger;
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create(
-        CreateCommitmentRequest request)
+    public async Task<IActionResult> Create([FromBody] JsonElement body)
     {
+        CreateCommitmentRequest? request = null;
+
+        try
+        {
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+
+            request = JsonSerializer.Deserialize<CreateCommitmentRequest?>(body.GetRawText(), options);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "Invalid JSON in CreateCommitmentRequest");
+            return Failure("JSON inválido en la solicitud de creación de compromiso");
+        }
+
+        if (request is null)
+            return Failure("El request es obligatorio");
+
         var validation = await _createValidator.ValidateAsync(request);
 
         if (!validation.IsValid)
-            return Failure(
-                validation.Errors.First().ErrorMessage);
+            return Failure(validation.Errors.First().ErrorMessage);
 
-        var userId = User.FindFirstValue(
-            ClaimTypes.NameIdentifier);
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         if (string.IsNullOrEmpty(userId))
             return Failure("Usuario no autorizado");
 
-        var result = await _service.CreateAsync(
-            userId,
-            request);
-
-        return Success(
-            result,
-            "Compromiso creado correctamente");
+        try
+        {
+            var result = await _service.CreateAsync(userId, request);
+            return Success(result, "Compromiso creado correctamente");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating commitment");
+            return Failure("Error interno al crear compromiso");
+        }
     }
 
     [HttpGet]
@@ -122,32 +147,52 @@ public class CommitmentsController : BaseController
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(
         string id,
-        UpdateCommitmentRequest request)
+        [FromBody] JsonElement body)
     {
+        UpdateCommitmentRequest? request = null;
+
+        try
+        {
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+
+            request = JsonSerializer.Deserialize<UpdateCommitmentRequest?>(body.GetRawText(), options);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "Invalid JSON in UpdateCommitmentRequest");
+            return Failure("JSON inválido en la solicitud de actualización de compromiso");
+        }
+
+        if (request is null)
+            return Failure("El request es obligatorio");
+
         var validation = await _updateValidator.ValidateAsync(request);
 
         if (!validation.IsValid)
-            return Failure(
-                validation.Errors.First().ErrorMessage);
+            return Failure(validation.Errors.First().ErrorMessage);
 
-        var userId = User.FindFirstValue(
-            ClaimTypes.NameIdentifier);
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         if (string.IsNullOrEmpty(userId))
             return Failure("Usuario no autorizado");
 
-        var result = await _service.UpdateAsync(
-            id,
-            userId,
-            request);
+        try
+        {
+            var result = await _service.UpdateAsync(id, userId, request);
 
-        if (result is null)
-            return NotFoundResponse(
-                "Compromiso no encontrado");
+            if (result is null)
+                return NotFoundResponse("Compromiso no encontrado");
 
-        return Success(
-            result,
-            "Compromiso actualizado correctamente");
+            return Success(result, "Compromiso actualizado correctamente");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating commitment");
+            return Failure("Error interno al actualizar compromiso");
+        }
     }
 
     [HttpDelete("{id}")]
