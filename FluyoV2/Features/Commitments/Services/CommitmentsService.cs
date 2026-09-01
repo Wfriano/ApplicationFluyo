@@ -109,11 +109,9 @@ public class CommitmentsService
 
                 await _recurrencesRepository.CreateAsync(recurrence);
 
-                // attach recurrence marker to the commitment notes so we can find the recurrence later
-                var marker = $"Recurrence:{recurrence.Id}:orig";
-                commitment.Notes = string.IsNullOrWhiteSpace(request.Notes)
-                    ? marker
-                    : (request.Notes + " " + marker).Trim();
+                // persist recurrence link in dedicated field, keep notes only for user text
+                commitment.RecurrenceId = recurrence.Id;
+                commitment.Notes = request.Notes ?? string.Empty;
 
                 await _repository.UpdateAsync(commitment);
 
@@ -167,7 +165,7 @@ public class CommitmentsService
             .Where(c => c.IsActive)
             .Select(c =>
             {
-                var recurrenceId = ExtractRecurrenceId(c.Notes);
+                var recurrenceId = ResolveRecurrenceId(c);
                 recById.TryGetValue(recurrenceId ?? string.Empty, out var rec);
                 return Map(c, rec);
             })
@@ -234,7 +232,7 @@ public class CommitmentsService
             return null;
 
         var recurrences = await _recurrencesRepository.GetByUserAsync(userId);
-        var recurrenceId = ExtractRecurrenceId(commitment.Notes);
+        var recurrenceId = ResolveRecurrenceId(commitment);
         var rec = recurrences.FirstOrDefault(r => r.Id == recurrenceId);
 
         FluyoV2.Features.Transactions.Dtos.RecurrenceResponse? recResp = null;
@@ -288,13 +286,11 @@ public class CommitmentsService
         if (commitment is null || commitment.UserId != userId)
             return null;
 
-        // keep existing notes to possibly restore/modify after recurrence handling
-        var originalNotes = commitment.Notes ?? string.Empty;
-
         commitment.Name = request.Name;
         commitment.Category = request.Category;
         commitment.Amount = request.Amount;
         commitment.PaymentDate = request.PaymentDate;
+        commitment.Notes = request.Notes ?? string.Empty;
         commitment.IsActive = request.IsActive;
 
         await _repository.UpdateAsync(commitment);
@@ -305,7 +301,7 @@ public class CommitmentsService
             commitment.Id);
 
         // handle recurrence update/create/delete
-        var existingRecurrenceId = ExtractRecurrenceId(originalNotes);
+        var existingRecurrenceId = ResolveRecurrenceId(commitment);
 
         var hasRecurrenceData = request.Recurrence != null && (
             !string.IsNullOrWhiteSpace(request.Recurrence.Frequency) ||
@@ -341,8 +337,7 @@ public class CommitmentsService
 
                 await _recurrencesRepository.CreateAsync(recurrence);
 
-                var marker = $"Recurrence:{recurrence.Id}:orig";
-                commitment.Notes = string.IsNullOrWhiteSpace(request.Notes) ? marker : (request.Notes + " " + marker).Trim();
+                commitment.RecurrenceId = recurrence.Id;
                 await _repository.UpdateAsync(commitment);
             }
             else
@@ -387,26 +382,24 @@ public class CommitmentsService
 
                     await _recurrencesRepository.CreateAsync(recurrence);
 
-                    var marker = $"Recurrence:{recurrence.Id}:orig";
-                    commitment.Notes = string.IsNullOrWhiteSpace(request.Notes) ? marker : (request.Notes + " " + marker).Trim();
+                    commitment.RecurrenceId = recurrence.Id;
                     await _repository.UpdateAsync(commitment);
                 }
             }
         }
         else
         {
-            // client removed recurrence data: if there was an existing recurrence, delete it and remove marker from notes
+            // client removed recurrence data: if there was an existing recurrence, delete it
             if (!string.IsNullOrWhiteSpace(existingRecurrenceId))
             {
                 await _recurrencesRepository.DeleteAsync(existingRecurrenceId);
-                // remove any Recurrence:<id>:... fragment from notes
-                commitment.Notes = RemoveRecurrenceMarker(commitment.Notes ?? string.Empty, existingRecurrenceId);
+                commitment.RecurrenceId = null;
                 await _repository.UpdateAsync(commitment);
             }
         }
 
         // include recurrence (if any) in the response
-        var recId = ExtractRecurrenceId(commitment.Notes);
+        var recId = ResolveRecurrenceId(commitment);
         FluyoV2.Features.Transactions.Dtos.RecurrenceResponse? recResp = null;
         if (!string.IsNullOrWhiteSpace(recId))
         {
@@ -464,7 +457,7 @@ public class CommitmentsService
         if (commitment is null || commitment.UserId != userId)
             return false;
 
-        var recurrenceId = ExtractRecurrenceId(commitment.Notes);
+        var recurrenceId = ResolveRecurrenceId(commitment);
 
         // Elimina el compromiso actual
         await _repository.DeleteAsync(id);
@@ -477,7 +470,7 @@ public class CommitmentsService
             var relatedCommitments = userCommitments
                 .Where(x => x.Id != id
                     && x.IsActive
-                    && IsFromRecurrence(x.Notes, recurrenceId))
+                    && ResolveRecurrenceId(x) == recurrenceId)
                 .ToList();
 
             foreach (var item in relatedCommitments)
@@ -627,17 +620,20 @@ public class CommitmentsService
             DateTimeKind.Utc);
     }
 
-    private static bool IsFromRecurrence(string? notes, string recurrenceId)
+    private static string? ResolveRecurrenceId(Commitment commitment)
     {
-        return ExtractRecurrenceId(notes) == recurrenceId;
+        if (!string.IsNullOrWhiteSpace(commitment.RecurrenceId))
+            return commitment.RecurrenceId;
+
+        return ExtractRecurrenceIdFromNotes(commitment.Notes);
     }
 
-    private static string? ExtractRecurrenceId(string? notes)
+    private static string? ExtractRecurrenceIdFromNotes(string? notes)
     {
         if (string.IsNullOrWhiteSpace(notes))
             return null;
 
-        // Expected format: Recurrence:{recurrenceId}:{yyyy-MM}
+        // Legacy format: Recurrence:{recurrenceId}:{yyyy-MM}
         var parts = notes.Split(':', StringSplitOptions.RemoveEmptyEntries);
 
         if (parts.Length < 3)
@@ -669,24 +665,5 @@ public class CommitmentsService
         };
     }
 
-    private static string RemoveRecurrenceMarker(string notes, string recurrenceId)
-    {
-        if (string.IsNullOrWhiteSpace(notes))
-            return notes;
-
-        var markerPrefix = $"Recurrence:{recurrenceId}:";
-        var idx = notes.IndexOf(markerPrefix, StringComparison.OrdinalIgnoreCase);
-        if (idx < 0)
-            return notes.Trim();
-
-        // remove marker and following token until whitespace or end
-        var endIdx = notes.IndexOf(' ', idx);
-        if (endIdx < 0)
-            endIdx = notes.Length;
-
-        var newNotes = notes.Remove(idx, endIdx - idx).Trim();
-
-        return newNotes;
     }
-}
 

@@ -77,9 +77,6 @@ public class RecurrenceProcessorService : BackgroundService
                         }
                         else
                         {
-                            var marker = $"Recurrence:{rec.Id}:{now:yyyy-MM}";
-                            var recurrencePrefix = $"Recurrence:{rec.Id}:";
-
                             var userCommitments = await commitmentsRepository.GetByUserAsync(rec.UserId);
 
                             var existing = userCommitments
@@ -88,8 +85,8 @@ public class RecurrenceProcessorService : BackgroundService
                                     && x.PaymentDate.HasValue
                                     && x.PaymentDate.Value.Year == now.Year
                                     && x.PaymentDate.Value.Month == now.Month
-                                    && !string.IsNullOrWhiteSpace(x.Notes)
-                                    && x.Notes.Contains(recurrencePrefix, StringComparison.OrdinalIgnoreCase));
+                                    && (x.RecurrenceId == rec.Id
+                                        || IsLegacyRecurrenceNote(x.Notes, rec.Id)));
 
                             if (existing is null)
                             {
@@ -104,7 +101,8 @@ public class RecurrenceProcessorService : BackgroundService
                                         : rec.Category,
                                     Amount = rec.Amount,
                                     PaymentDate = now.Date,
-                                    Notes = marker
+                                    Notes = rec.Note ?? string.Empty,
+                                    RecurrenceId = rec.Id
                                 };
 
                                 await commitmentsRepository.CreateAsync(commitment);
@@ -140,5 +138,13 @@ public class RecurrenceProcessorService : BackgroundService
             0,
             0,
             DateTimeKind.Utc).AddMonths(1);
+    }
+
+    private static bool IsLegacyRecurrenceNote(string? notes, string recurrenceId)
+    {
+        if (string.IsNullOrWhiteSpace(notes))
+            return false;
+
+        return notes.Contains($"Recurrence:{recurrenceId}:", StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -25,6 +25,9 @@ public class Commitment
     // PaymentDate represents the exact due date (day/month/year). It's optional.
     public DateTime? PaymentDate { get; set; }
 
+    // Internal link to recurrence series (do not expose in UI note field)
+    public string? RecurrenceId { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     public DateTime? LastPaymentDate { get; set; }
