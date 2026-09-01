@@ -64,16 +64,23 @@ public class TransactionsController : BaseController
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] string? category = null, [FromQuery] string? type = null)
+    public async Task<IActionResult> GetAll([FromQuery] string? category = null, [FromQuery] string? type = null, [FromQuery] string? name = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         if (string.IsNullOrEmpty(userId))
             return Failure("Usuario no autorizado");
 
-        var result = await _service.GetAllAsync(userId, category, type);
+        // normalize paging params
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 1;
+        if (pageSize > 100) pageSize = 100;
 
-        return Success(result, "Movimientos consultados correctamente");
+        var (items, totalCount) = await _service.GetAllAsync(userId, category, type, name, page, pageSize);
+
+        Response.Headers["X-Total-Count"] = totalCount.ToString();
+
+        return Success(items, "Movimientos consultados correctamente");
     }
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)

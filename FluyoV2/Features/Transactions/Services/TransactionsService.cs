@@ -446,30 +446,36 @@ public class TransactionsService
         await _repository.DeleteAsync(id);
     }
 
-    public async Task<List<TransactionResponse>> GetAllAsync(string userId, string? category = null, string? type = null)
+    public async Task<(List<TransactionResponse> Items, int TotalCount)> GetAllAsync(string userId, string? category = null, string? type = null, string? name = null, int page = 1, int pageSize = 20)
     {
-        var transactions = await _repository.GetByUserAsync(userId, category, type);
+        var transactions = await _repository.GetByUserAsync(userId, category, type, name, page, pageSize);
+        var total = await _repository.CountByUserAsync(userId, category, type, name);
         var recurrences = await _recurrencesService.GetAllByUserAsync(userId);
 
         _logger.LogInformation(
-            "Movimientos consultados. UserId: {UserId}, Category: {Category}, Type: {Type}, Total: {Total}",
+            "Movimientos consultados. UserId: {UserId}, Category: {Category}, Type: {Type}, Name: {Name}, Page: {Page}, PageSize: {PageSize}, Total: {Total}",
             userId,
             category,
             type,
-            transactions.Count);
+            name,
+            page,
+            pageSize,
+            total);
 
         var recurrencesByTransactionId = recurrences
             .Where(x => !string.IsNullOrWhiteSpace(x.TransactionId))
             .GroupBy(x => x.TransactionId)
             .ToDictionary(x => x.Key, x => x.First());
 
-        return transactions
+        var items = transactions
             .Select(transaction =>
             {
                 recurrencesByTransactionId.TryGetValue(transaction.Id, out var recurrence);
                 return Map(transaction, recurrence);
             })
             .ToList();
+
+        return (items, total);
     }
 
     private static TransactionResponse Map(
