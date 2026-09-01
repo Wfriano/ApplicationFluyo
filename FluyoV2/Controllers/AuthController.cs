@@ -3,6 +3,7 @@ using FluyoV2.Controllers.Base;
 using FluyoV2.Features.Auth.Dtos;
 using FluyoV2.Features.Auth.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Cors;
 
 namespace FluyoV2.Controllers;
 

@@ -85,6 +85,19 @@ builder.Services.AddAuthorization();
 
 // Controllers
 builder.Services.AddControllers();
+
+// CORS: allow the frontend at render.com to call login
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowRender", policy =>
+    {
+        policy.WithOrigins("https://applicationfluyo.onrender.com")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 builder.Services.AddEndpointsApiExplorer();
 
 // Swagger
