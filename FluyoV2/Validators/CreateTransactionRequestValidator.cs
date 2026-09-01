@@ -8,9 +8,13 @@ public class CreateTransactionRequestValidator
 {
     public CreateTransactionRequestValidator()
     {
-        RuleFor(x => x.AccountId)
-            .NotEmpty()
-            .WithMessage("La cuenta es obligatoria");
+        // AccountId is required only when the transaction is marked as paid.
+        When(x => x.IsPaid, () =>
+        {
+            RuleFor(x => x.AccountId)
+                .NotEmpty()
+                .WithMessage("La cuenta es obligatoria cuando el movimiento está marcado como pagado");
+        });
 
         RuleFor(x => x.Category)
             .NotEmpty()

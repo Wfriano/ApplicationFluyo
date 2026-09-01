@@ -1,5 +1,8 @@
+using System.Text.Json.Serialization;
+
 namespace FluyoV2.Features.Transactions.Dtos;
 
+[JsonConverter(typeof(CreateRecurrenceRequestJsonConverter))]
 public class CreateRecurrenceRequest
 {
     public string TransactionId { get; set; } = string.Empty;
