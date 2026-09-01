@@ -36,7 +36,7 @@ public class RecurrencesService
             Type = request.Type,
             Category = request.Category,
             Description = request.Description,
-            AccountId = request.AccountId,
+            AccountId = string.IsNullOrWhiteSpace(request.AccountId) ? null : request.AccountId,
             IsPaid = request.IsPaid,
             Note = request.Note ?? string.Empty
         };
@@ -85,7 +85,7 @@ public class RecurrencesService
         recurrence.Type = request.Type;
         recurrence.Category = request.Category;
         recurrence.Description = request.Description;
-        recurrence.AccountId = request.AccountId;
+        recurrence.AccountId = string.IsNullOrWhiteSpace(request.AccountId) ? null : request.AccountId;
         recurrence.IsPaid = request.IsPaid;
         recurrence.Note = request.Note ?? string.Empty;
 

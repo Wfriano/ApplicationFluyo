@@ -102,7 +102,7 @@ public class CommitmentsService
                     Type = "Expense",
                     Category = request.Category,
                     Description = string.IsNullOrWhiteSpace(request.Recurrence.Description) ? request.Name : request.Recurrence.Description,
-                    AccountId = request.Recurrence.AccountId ?? string.Empty,
+                    AccountId = string.IsNullOrWhiteSpace(request.Recurrence.AccountId) ? null : request.Recurrence.AccountId,
                     IsPaid = request.Recurrence.IsPaid,
                     Note = request.Notes ?? string.Empty
                 };
@@ -334,7 +334,7 @@ public class CommitmentsService
                     Type = "Expense",
                     Category = request.Category,
                     Description = string.IsNullOrWhiteSpace(request.Recurrence.Description) ? request.Name : request.Recurrence.Description,
-                    AccountId = request.Recurrence.AccountId ?? string.Empty,
+                    AccountId = string.IsNullOrWhiteSpace(request.Recurrence.AccountId) ? null : request.Recurrence.AccountId,
                     IsPaid = request.Recurrence.IsPaid,
                     Note = request.Notes ?? string.Empty
                 };
