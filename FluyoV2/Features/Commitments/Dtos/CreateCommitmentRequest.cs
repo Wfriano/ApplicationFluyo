@@ -1,4 +1,6 @@
-﻿namespace FluyoV2.Features.Commitments.Dtos;
+﻿using FluyoV2.Features.Transactions.Dtos;
+
+namespace FluyoV2.Features.Commitments.Dtos;
 
 public class CreateCommitmentRequest
 {
@@ -7,4 +9,7 @@ public class CreateCommitmentRequest
     public decimal Amount { get; set; }
     public DateTime? PaymentDate { get; set; }
     public string? Notes { get; set; }
+
+    // Optional recurrence settings: when provided, a recurrence will be created that generates pending commitments
+    public CreateRecurrenceRequest? Recurrence { get; set; }
 }

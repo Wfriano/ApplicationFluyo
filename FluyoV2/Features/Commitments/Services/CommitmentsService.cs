@@ -74,7 +74,47 @@ public class CommitmentsService
             commitment.Id,
             commitment.Name);
 
-        return Map(commitment);
+        // If client provided recurrence settings, create a recurrence so the background processor will generate pending commitments
+        if (request.Recurrence != null && (
+            !string.IsNullOrWhiteSpace(request.Recurrence.Frequency) ||
+            request.Recurrence.NextDate > DateTime.MinValue ||
+            request.Recurrence.Amount > 0 ||
+            !string.IsNullOrWhiteSpace(request.Recurrence.Type) ||
+            !string.IsNullOrWhiteSpace(request.Recurrence.AccountId)
+        ))
+        {
+            // Validate frequency
+            if (!Enum.TryParse<FluyoV2.Features.Transactions.Models.Frequency>(request.Recurrence.Frequency, true, out var frequency))
+            {
+                throw new ArgumentException("Frequency is invalid");
+            }
+
+n            var recurrence = new FluyoV2.Features.Transactions.Models.Recurrence
+            {
+                TransactionId = string.Empty,
+                UserId = userId,
+                Frequency = frequency,
+                NextDate = FirstDayOfSelectedMonthUtc(request.Recurrence.NextDate),
+                EndDate = request.Recurrence.EndDate,
+                Amount = request.Recurrence.Amount > 0 ? request.Recurrence.Amount : request.Amount,
+                Type = "Expense",
+                Category = request.Category,
+                Description = string.IsNullOrWhiteSpace(request.Recurrence.Description) ? request.Name : request.Recurrence.Description,
+                AccountId = request.Recurrence.AccountId ?? string.Empty,
+                IsPaid = request.Recurrence.IsPaid,
+                Note = request.Notes ?? string.Empty
+            };
+
+            await _recurrencesRepository.CreateAsync(recurrence);
+
+            _logger.LogInformation(
+                "Recurrence created for commitment. UserId: {UserId}, CommitmentId: {CommitmentId}, NextDate: {NextDate}",
+                userId,
+                commitment.Id,
+                recurrence.NextDate);
+        }
+
+n        return Map(commitment);
     }
 
     public async Task<List<CommitmentResponse>> GetAllAsync(
@@ -371,6 +411,22 @@ public class CommitmentsService
 
         // return the commitment info that was paid
         return Map(commitment);
+    }
+
+    private static DateTime FirstDayOfSelectedMonthUtc(DateTime selected)
+    {
+        var source = selected == default
+            ? DateTime.UtcNow.AddMonths(1)
+            : selected;
+
+        return new DateTime(
+            source.Year,
+            source.Month,
+            1,
+            0,
+            0,
+            0,
+            DateTimeKind.Utc);
     }
 
     private static bool IsFromRecurrence(string? notes, string recurrenceId)
