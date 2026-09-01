@@ -107,6 +107,14 @@ public class CommitmentsService
 
             await _recurrencesRepository.CreateAsync(recurrence);
 
+            // attach recurrence marker to the commitment notes so we can find the recurrence later
+            var marker = $"Recurrence:{recurrence.Id}:orig";
+            commitment.Notes = string.IsNullOrWhiteSpace(request.Notes)
+                ? marker
+                : (request.Notes + " " + marker).Trim();
+
+            await _repository.UpdateAsync(commitment);
+
             _logger.LogInformation(
                 "Recurrence created for commitment. UserId: {UserId}, CommitmentId: {CommitmentId}, NextDate: {NextDate}",
                 userId,
@@ -222,6 +230,9 @@ public class CommitmentsService
         if (commitment is null || commitment.UserId != userId)
             return null;
 
+        // keep existing notes to possibly restore/modify after recurrence handling
+        var originalNotes = commitment.Notes ?? string.Empty;
+
         commitment.Name = request.Name;
         commitment.Category = request.Category;
         commitment.Amount = request.Amount;
@@ -234,6 +245,107 @@ public class CommitmentsService
             "Compromiso actualizado. UserId: {UserId}, CommitmentId: {CommitmentId}",
             userId,
             commitment.Id);
+
+        // handle recurrence update/create/delete
+        var existingRecurrenceId = ExtractRecurrenceId(originalNotes);
+
+        var hasRecurrenceData = request.Recurrence != null && (
+            !string.IsNullOrWhiteSpace(request.Recurrence.Frequency) ||
+            request.Recurrence.NextDate > DateTime.MinValue ||
+            request.Recurrence.Amount > 0 ||
+            !string.IsNullOrWhiteSpace(request.Recurrence.Type) ||
+            !string.IsNullOrWhiteSpace(request.Recurrence.AccountId)
+        );
+
+        if (hasRecurrenceData)
+        {
+            // create or update recurrence
+            if (!Enum.TryParse<FluyoV2.Features.Transactions.Models.Frequency>(request.Recurrence.Frequency, true, out var frequency))
+                throw new ArgumentException("Frequency is invalid");
+
+            if (string.IsNullOrWhiteSpace(existingRecurrenceId))
+            {
+                var recurrence = new FluyoV2.Features.Transactions.Models.Recurrence
+                {
+                    TransactionId = string.Empty,
+                    UserId = userId,
+                    Frequency = frequency,
+                    NextDate = FirstDayOfSelectedMonthUtc(request.Recurrence.NextDate),
+                    EndDate = request.Recurrence.EndDate,
+                    Amount = request.Recurrence.Amount > 0 ? request.Recurrence.Amount : request.Amount,
+                    Type = "Expense",
+                    Category = request.Category,
+                    Description = string.IsNullOrWhiteSpace(request.Recurrence.Description) ? request.Name : request.Recurrence.Description,
+                    AccountId = request.Recurrence.AccountId ?? string.Empty,
+                    IsPaid = request.Recurrence.IsPaid,
+                    Note = request.Notes ?? string.Empty
+                };
+
+                await _recurrencesRepository.CreateAsync(recurrence);
+
+                var marker = $"Recurrence:{recurrence.Id}:orig";
+                commitment.Notes = string.IsNullOrWhiteSpace(request.Notes) ? marker : (request.Notes + " " + marker).Trim();
+                await _repository.UpdateAsync(commitment);
+            }
+            else
+            {
+                // update existing recurrence if found
+                var recList = await _recurrencesRepository.GetByUserAsync(userId);
+                var existingRec = recList.FirstOrDefault(r => r.Id == existingRecurrenceId);
+
+                if (existingRec is not null)
+                {
+                    existingRec.Frequency = frequency;
+                    existingRec.NextDate = FirstDayOfSelectedMonthUtc(request.Recurrence.NextDate);
+                    existingRec.EndDate = request.Recurrence.EndDate;
+                    existingRec.Amount = request.Recurrence.Amount > 0 ? request.Recurrence.Amount : request.Amount;
+                    existingRec.Type = "Expense";
+                    existingRec.Category = request.Category;
+                    existingRec.Description = string.IsNullOrWhiteSpace(request.Recurrence.Description) ? request.Name : request.Recurrence.Description;
+                    existingRec.AccountId = request.Recurrence.AccountId ?? string.Empty;
+                    existingRec.IsPaid = request.Recurrence.IsPaid;
+                    existingRec.Note = request.Notes ?? string.Empty;
+
+                    await _recurrencesRepository.UpdateAsync(existingRec);
+                }
+                else
+                {
+                    // fallback: create new recurrence if the id wasn't found
+                    var recurrence = new FluyoV2.Features.Transactions.Models.Recurrence
+                    {
+                        TransactionId = string.Empty,
+                        UserId = userId,
+                        Frequency = frequency,
+                        NextDate = FirstDayOfSelectedMonthUtc(request.Recurrence.NextDate),
+                        EndDate = request.Recurrence.EndDate,
+                        Amount = request.Recurrence.Amount > 0 ? request.Recurrence.Amount : request.Amount,
+                        Type = "Expense",
+                        Category = request.Category,
+                        Description = string.IsNullOrWhiteSpace(request.Recurrence.Description) ? request.Name : request.Recurrence.Description,
+                        AccountId = request.Recurrence.AccountId ?? string.Empty,
+                        IsPaid = request.Recurrence.IsPaid,
+                        Note = request.Notes ?? string.Empty
+                    };
+
+                    await _recurrencesRepository.CreateAsync(recurrence);
+
+                    var marker = $"Recurrence:{recurrence.Id}:orig";
+                    commitment.Notes = string.IsNullOrWhiteSpace(request.Notes) ? marker : (request.Notes + " " + marker).Trim();
+                    await _repository.UpdateAsync(commitment);
+                }
+            }
+        }
+        else
+        {
+            // client removed recurrence data: if there was an existing recurrence, delete it and remove marker from notes
+            if (!string.IsNullOrWhiteSpace(existingRecurrenceId))
+            {
+                await _recurrencesRepository.DeleteAsync(existingRecurrenceId);
+                // remove any Recurrence:<id>:... fragment from notes
+                commitment.Notes = RemoveRecurrenceMarker(commitment.Notes ?? string.Empty, existingRecurrenceId);
+                await _repository.UpdateAsync(commitment);
+            }
+        }
 
         return Map(commitment);
     }
@@ -468,4 +580,25 @@ public class CommitmentsService
             CreatedAt = commitment.CreatedAt
         };
     }
+
+    private static string RemoveRecurrenceMarker(string notes, string recurrenceId)
+    {
+        if (string.IsNullOrWhiteSpace(notes))
+            return notes;
+
+        var markerPrefix = $"Recurrence:{recurrenceId}:";
+        var idx = notes.IndexOf(markerPrefix, StringComparison.OrdinalIgnoreCase);
+        if (idx < 0)
+            return notes.Trim();
+
+        // remove marker and following token until whitespace or end
+        var endIdx = notes.IndexOf(' ', idx);
+        if (endIdx < 0)
+            endIdx = notes.Length;
+
+        var newNotes = notes.Remove(idx, endIdx - idx).Trim();
+
+        return newNotes;
+    }
 }
+

@@ -1,12 +1,12 @@
-﻿namespace FluyoV2.Features.Commitments.Dtos;
+﻿using FluyoV2.Features.Transactions.Dtos;
+
+namespace FluyoV2.Features.Commitments.Dtos;
 
 public class UpdateCommitmentRequest
 {
-    public string Name { get; set; }
-        = string.Empty;
+    public string Name { get; set; } = string.Empty;
 
-    public string Category { get; set; }
-        = string.Empty;
+    public string Category { get; set; } = string.Empty;
 
     public decimal Amount { get; set; }
 
@@ -17,4 +17,7 @@ public class UpdateCommitmentRequest
     public string? Notes { get; set; }
 
     public bool IsActive { get; set; }
+
+    // Optional recurrence settings: when provided, create/update/delete recurrence for this commitment
+    public CreateRecurrenceRequest? Recurrence { get; set; }
 }

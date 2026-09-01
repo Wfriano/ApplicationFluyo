@@ -33,5 +33,27 @@ public class UpdateCommitmentRequestValidator
         {
             RuleFor(x => x.Notes).MaximumLength(500);
         });
+
+        // Optional recurrence validation: only validate when meaningful recurrence data is provided
+        When(x => x.Recurrence != null && (
+            !string.IsNullOrWhiteSpace(x.Recurrence.Frequency) ||
+            x.Recurrence.NextDate > DateTime.MinValue ||
+            x.Recurrence.Amount > 0 ||
+            !string.IsNullOrWhiteSpace(x.Recurrence.Type) ||
+            !string.IsNullOrWhiteSpace(x.Recurrence.AccountId)
+        ), () =>
+        {
+            RuleFor(x => x.Recurrence!.Frequency)
+                .NotEmpty()
+                .WithMessage("La frecuencia de la recurrencia es obligatoria");
+
+            RuleFor(x => x.Recurrence!.NextDate)
+                .GreaterThan(DateTime.MinValue)
+                .WithMessage("La próxima fecha de recurrencia es obligatoria");
+
+            RuleFor(x => x.Recurrence!.Amount)
+                .GreaterThan(0)
+                .WithMessage("El valor de la recurrencia debe ser mayor a cero");
+        });
     }
 }
