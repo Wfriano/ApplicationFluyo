@@ -130,23 +130,47 @@ public class CommitmentsService
             }
         }
 
-        return Map(commitment);
+        return Map(commitment, null);
     }
 
     public async Task<List<CommitmentResponse>> GetAllAsync(
         string userId)
     {
         var commitments = await _repository.GetByUserAsync(userId);
+        var recurrences = await _recurrencesRepository.GetByUserAsync(userId);
 
         _logger.LogInformation(
             "Compromisos consultados. UserId: {UserId}, Total: {Total}",
             userId,
             commitments.Count);
 
-        // return only active commitments
+        var recById = recurrences.ToDictionary(r => r.Id, r => new FluyoV2.Features.Transactions.Dtos.RecurrenceResponse
+        {
+            Id = r.Id,
+            TransactionId = r.TransactionId,
+            Frequency = r.Frequency.ToString(),
+            NextDate = r.NextDate,
+            EndDate = r.EndDate,
+            CreatedAt = r.CreatedAt,
+            Amount = r.Amount,
+            Type = r.Type,
+            Category = r.Category,
+            Description = r.Description,
+            AccountId = r.AccountId,
+            OtherAccountId = null,
+            IsPaid = r.IsPaid,
+            Note = r.Note
+        });
+
+        // return only active commitments, include recurrence info when available
         return commitments
             .Where(c => c.IsActive)
-            .Select(Map)
+            .Select(c =>
+            {
+                var recurrenceId = ExtractRecurrenceId(c.Notes);
+                recById.TryGetValue(recurrenceId ?? string.Empty, out var rec);
+                return Map(c, rec);
+            })
             .ToList();
     }
 
@@ -209,7 +233,33 @@ public class CommitmentsService
         if (commitment is null || commitment.UserId != userId)
             return null;
 
-        return Map(commitment);
+        var recurrences = await _recurrencesRepository.GetByUserAsync(userId);
+        var recurrenceId = ExtractRecurrenceId(commitment.Notes);
+        var rec = recurrences.FirstOrDefault(r => r.Id == recurrenceId);
+
+        FluyoV2.Features.Transactions.Dtos.RecurrenceResponse? recResp = null;
+        if (rec is not null)
+        {
+            recResp = new FluyoV2.Features.Transactions.Dtos.RecurrenceResponse
+            {
+                Id = rec.Id,
+                TransactionId = rec.TransactionId,
+                Frequency = rec.Frequency.ToString(),
+                NextDate = rec.NextDate,
+                EndDate = rec.EndDate,
+                CreatedAt = rec.CreatedAt,
+                Amount = rec.Amount,
+                Type = rec.Type,
+                Category = rec.Category,
+                Description = rec.Description,
+                AccountId = rec.AccountId,
+                OtherAccountId = null,
+                IsPaid = rec.IsPaid,
+                Note = rec.Note
+            };
+        }
+
+        return Map(commitment, recResp);
     }
 
     public async Task<decimal> GetPendingTotalAsync(string userId)
@@ -355,7 +405,35 @@ public class CommitmentsService
             }
         }
 
-        return Map(commitment);
+        // include recurrence (if any) in the response
+        var recId = ExtractRecurrenceId(commitment.Notes);
+        FluyoV2.Features.Transactions.Dtos.RecurrenceResponse? recResp = null;
+        if (!string.IsNullOrWhiteSpace(recId))
+        {
+            var rec = (await _recurrencesRepository.GetByUserAsync(commitment.UserId)).FirstOrDefault(r => r.Id == recId);
+            if (rec is not null)
+            {
+                recResp = new FluyoV2.Features.Transactions.Dtos.RecurrenceResponse
+                {
+                    Id = rec.Id,
+                    TransactionId = rec.TransactionId,
+                    Frequency = rec.Frequency.ToString(),
+                    NextDate = rec.NextDate,
+                    EndDate = rec.EndDate,
+                    CreatedAt = rec.CreatedAt,
+                    Amount = rec.Amount,
+                    Type = rec.Type,
+                    Category = rec.Category,
+                    Description = rec.Description,
+                    AccountId = rec.AccountId,
+                    OtherAccountId = null,
+                    IsPaid = rec.IsPaid,
+                    Note = rec.Note
+                };
+            }
+        }
+
+        return Map(commitment, recResp);
     }
 
     public async Task<bool> DeleteAsync(
@@ -530,7 +608,7 @@ public class CommitmentsService
             commitment.Amount);
 
         // return the commitment info that was paid
-        return Map(commitment);
+        return Map(commitment, null);
     }
 
     private static DateTime FirstDayOfSelectedMonthUtc(DateTime selected)
@@ -572,7 +650,8 @@ public class CommitmentsService
     }
 
     private static CommitmentResponse Map(
-        Commitment commitment)
+        Commitment commitment,
+        FluyoV2.Features.Transactions.Dtos.RecurrenceResponse? recurrence = null)
     {
         return new CommitmentResponse
         {
@@ -585,7 +664,8 @@ public class CommitmentsService
             IsActive = commitment.IsActive,
             Notes = commitment.Notes ?? string.Empty,
             LastPaymentDate = commitment.LastPaymentDate,
-            CreatedAt = commitment.CreatedAt
+            CreatedAt = commitment.CreatedAt,
+            Recurrence = recurrence
         };
     }
 
