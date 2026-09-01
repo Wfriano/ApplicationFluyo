@@ -17,7 +17,7 @@ public class Recurrence
     public string Id { get; set; } = string.Empty;
 
     [BsonRepresentation(BsonType.ObjectId)]
-    public string TransactionId { get; set; } = string.Empty;
+    public string? TransactionId { get; set; } = null;
 
     public string UserId { get; set; } = string.Empty;
 

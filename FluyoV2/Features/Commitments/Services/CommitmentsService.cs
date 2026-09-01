@@ -93,7 +93,7 @@ public class CommitmentsService
 
                 var recurrence = new FluyoV2.Features.Transactions.Models.Recurrence
                 {
-                    TransactionId = string.Empty,
+                    TransactionId = null,
                     UserId = userId,
                     Frequency = frequency,
                     NextDate = FirstDayOfSelectedMonthUtc(request.Recurrence.NextDate),
@@ -325,7 +325,7 @@ public class CommitmentsService
             {
                 var recurrence = new FluyoV2.Features.Transactions.Models.Recurrence
                 {
-                    TransactionId = string.Empty,
+                    TransactionId = null,
                     UserId = userId,
                     Frequency = frequency,
                     NextDate = FirstDayOfSelectedMonthUtc(request.Recurrence.NextDate),
@@ -371,7 +371,7 @@ public class CommitmentsService
                     // fallback: create new recurrence if the id wasn't found
                     var recurrence = new FluyoV2.Features.Transactions.Models.Recurrence
                     {
-                        TransactionId = string.Empty,
+                        TransactionId = null,
                         UserId = userId,
                         Frequency = frequency,
                         NextDate = FirstDayOfSelectedMonthUtc(request.Recurrence.NextDate),

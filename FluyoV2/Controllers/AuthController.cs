@@ -46,6 +46,7 @@ public class AuthController : BaseController
     }
 
     [HttpPost("login")]
+    [EnableCors("AllowRender")]
     public async Task<IActionResult> Login(LoginRequest request)
     {
         var validation = await _loginValidator.ValidateAsync(request);

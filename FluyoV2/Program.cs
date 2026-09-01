@@ -201,6 +201,9 @@ app.UseMiddleware<ExceptionMiddleware>();
 
 app.UseHttpsRedirection();
 
+// Enable CORS middleware so [EnableCors] attributes are respected
+app.UseCors();
+
 app.UseAuthentication();
 app.UseAuthorization();
 

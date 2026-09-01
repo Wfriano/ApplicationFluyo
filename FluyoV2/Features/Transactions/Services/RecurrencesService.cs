@@ -27,7 +27,7 @@ public class RecurrencesService
 
         var recurrence = new Recurrence
         {
-            TransactionId = request.TransactionId,
+            TransactionId = string.IsNullOrWhiteSpace(request.TransactionId) ? null : request.TransactionId,
             UserId = userId,
             Frequency = frequency,
             NextDate = FirstDayOfSelectedMonthUtc(request.NextDate),
@@ -132,7 +132,7 @@ public class RecurrencesService
         return new RecurrenceResponse
         {
             Id = r.Id,
-            TransactionId = r.TransactionId,
+            TransactionId = r.TransactionId ?? string.Empty,
             Frequency = r.Frequency.ToString(),
             NextDate = r.NextDate,
             EndDate = r.EndDate,
