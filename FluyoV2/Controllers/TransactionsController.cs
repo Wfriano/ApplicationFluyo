@@ -64,14 +64,14 @@ public class TransactionsController : BaseController
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromQuery] string? category = null, [FromQuery] string? type = null)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         if (string.IsNullOrEmpty(userId))
             return Failure("Usuario no autorizado");
 
-        var result = await _service.GetAllAsync(userId);
+        var result = await _service.GetAllAsync(userId, category, type);
 
         return Success(result, "Movimientos consultados correctamente");
     }

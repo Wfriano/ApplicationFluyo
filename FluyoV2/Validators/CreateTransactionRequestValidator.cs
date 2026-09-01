@@ -24,7 +24,15 @@ public class CreateTransactionRequestValidator
             .Must(x => x != default)
             .WithMessage("La fecha es obligatoria");
 
-        When(x => x.Recurrence != null, () =>
+        // Only validate recurrence fields when the client provided meaningful recurrence data.
+        // This avoids forcing validation when an empty object ("Recurrence": {}) is sent.
+        When(x => x.Recurrence != null && (
+            !string.IsNullOrWhiteSpace(x.Recurrence.Frequency) ||
+            x.Recurrence.NextDate > DateTime.MinValue ||
+            x.Recurrence.Amount > 0 ||
+            !string.IsNullOrWhiteSpace(x.Recurrence.Type) ||
+            !string.IsNullOrWhiteSpace(x.Recurrence.AccountId)
+        ), () =>
         {
             RuleFor(x => x.Recurrence!.Frequency)
                 .NotEmpty()

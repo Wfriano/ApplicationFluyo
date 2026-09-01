@@ -96,6 +96,16 @@ public class AccountsController : BaseController
         if (string.IsNullOrEmpty(userId))
             return Failure("Usuario no autorizado");
 
+        // First fetch the account to verify ownership and balance
+        var account = await _accountsService.GetByIdAsync(id, userId);
+
+        if (account is null)
+            return NotFoundResponse("Cuenta no encontrada");
+
+        // Do not allow deletion if the account has a non-zero balance
+        if (account.Balance != 0)
+            return Failure("No se puede eliminar una cuenta con saldo");
+
         var deleted = await _accountsService.DeleteAsync(id, userId);
 
         if (!deleted)

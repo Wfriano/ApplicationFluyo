@@ -446,14 +446,16 @@ public class TransactionsService
         await _repository.DeleteAsync(id);
     }
 
-    public async Task<List<TransactionResponse>> GetAllAsync(string userId)
+    public async Task<List<TransactionResponse>> GetAllAsync(string userId, string? category = null, string? type = null)
     {
-        var transactions = await _repository.GetByUserAsync(userId);
+        var transactions = await _repository.GetByUserAsync(userId, category, type);
         var recurrences = await _recurrencesService.GetAllByUserAsync(userId);
 
         _logger.LogInformation(
-            "Movimientos consultados. UserId: {UserId}, Total: {Total}",
+            "Movimientos consultados. UserId: {UserId}, Category: {Category}, Type: {Type}, Total: {Total}",
             userId,
+            category,
+            type,
             transactions.Count);
 
         var recurrencesByTransactionId = recurrences

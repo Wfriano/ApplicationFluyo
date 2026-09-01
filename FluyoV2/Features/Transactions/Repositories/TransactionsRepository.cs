@@ -27,6 +27,22 @@ public class TransactionsRepository
             .ToListAsync();
     }
 
+    public async Task<List<Transaction>> GetByUserAsync(string userId, string? category, string? type)
+    {
+        var filter = Builders<Transaction>.Filter.Eq(x => x.UserId, userId);
+
+        if (!string.IsNullOrWhiteSpace(category))
+            filter = filter & Builders<Transaction>.Filter.Eq(x => x.Category, category);
+
+        if (!string.IsNullOrWhiteSpace(type))
+            filter = filter & Builders<Transaction>.Filter.Eq(x => x.Type, type);
+
+        return await _context.Transactions
+            .Find(filter)
+            .SortByDescending(x => x.TransactionDate)
+            .ToListAsync();
+    }
+
     public async Task<Transaction?> GetByIdAsync(string id)
     {
         return await _context.Transactions
