@@ -443,6 +443,17 @@ public class TransactionsService
         if (transaction is null || transaction.UserId != userId)
             throw new ArgumentException("Transaccion no encontrada o no autorizada");
 
+        var account = await _accountsRepository.GetByIdAsync(transaction.AccountId, userId);
+        if (account is null)
+            throw new BusinessException("Cuenta del movimiento no encontrada");
+
+        if (string.Equals(transaction.Type, TransactionTypes.Income, StringComparison.OrdinalIgnoreCase))
+            account.Balance -= transaction.Amount;
+        else if (string.Equals(transaction.Type, TransactionTypes.Expense, StringComparison.OrdinalIgnoreCase))
+            account.Balance += transaction.Amount;
+
+        await _accountsRepository.UpdateBalanceAsync(account.Id, account.Balance);
+
         await _repository.DeleteAsync(id);
     }
 
