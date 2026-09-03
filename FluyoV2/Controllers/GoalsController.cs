@@ -14,13 +14,16 @@ public class GoalsController : BaseController
 {
     private readonly IGoalsService _service;
     private readonly IValidator<CreateGoalRequest> _validator;
+    private readonly IValidator<CompleteGoalRequest> _completeValidator;
 
     public GoalsController(
         IGoalsService service,
-        IValidator<CreateGoalRequest> validator)
+        IValidator<CreateGoalRequest> validator,
+        IValidator<CompleteGoalRequest> completeValidator)
     {
         _service = service;
         _validator = validator;
+        _completeValidator = completeValidator;
     }
 
     [HttpPost]
@@ -105,14 +108,19 @@ public class GoalsController : BaseController
     }
 
     [HttpPost("{id}/complete")]
-    public async Task<IActionResult> Complete(string id)
+    public async Task<IActionResult> Complete(string id, CompleteGoalRequest request)
     {
+        var validation = await _completeValidator.ValidateAsync(request);
+
+        if (!validation.IsValid)
+            return Failure(validation.Errors.First().ErrorMessage);
+
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         if (string.IsNullOrEmpty(userId))
             return Failure("Usuario no autorizado");
 
-        var goal = await _service.CompleteAsync(id, userId);
+        var goal = await _service.CompleteAsync(id, userId, request);
 
         if (goal is null)
             return NotFoundResponse("Meta no encontrada");

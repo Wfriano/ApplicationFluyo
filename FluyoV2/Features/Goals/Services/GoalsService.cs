@@ -1,9 +1,13 @@
-﻿using FluyoV2.Features.Accounts.Repositories;
+﻿using FluyoV2.Constants;
+using FluyoV2.Exceptions;
+using FluyoV2.Features.Accounts.Repositories;
 using FluyoV2.Features.Commitments.Repositories;
 using FluyoV2.Features.Goals.Dtos;
 using FluyoV2.Features.Goals.Interfaces;
 using FluyoV2.Features.Goals.Models;
 using FluyoV2.Features.Goals.Repositories;
+using FluyoV2.Features.Transactions.Models;
+using FluyoV2.Features.Transactions.Repositories;
 
 namespace FluyoV2.Features.Goals.Services;
 
@@ -12,17 +16,20 @@ public class GoalsService : IGoalsService
     private readonly GoalsRepository _repository;
     private readonly AccountsRepository _accountsRepository;
     private readonly CommitmentsRepository _commitmentsRepository;
+    private readonly TransactionsRepository _transactionsRepository;
     private readonly ILogger<GoalsService> _logger;
 
     public GoalsService(
         GoalsRepository repository,
         AccountsRepository accountsRepository,
         CommitmentsRepository commitmentsRepository,
+        TransactionsRepository transactionsRepository,
         ILogger<GoalsService> logger)
     {
         _repository = repository;
         _accountsRepository = accountsRepository;
         _commitmentsRepository = commitmentsRepository;
+        _transactionsRepository = transactionsRepository;
         _logger = logger;
     }
 
@@ -179,7 +186,8 @@ public class GoalsService : IGoalsService
 
     public async Task<GoalResponse?> CompleteAsync(
         string id,
-        string userId)
+        string userId,
+        CompleteGoalRequest request)
     {
         var goal = await _repository.GetByIdAsync(id);
 
@@ -193,15 +201,50 @@ public class GoalsService : IGoalsService
             return null;
         }
 
+        var account = await _accountsRepository.GetByIdAsync(request.AccountId, userId);
+
+        if (account is null)
+            throw new BusinessException("Cuenta no encontrada");
+
+        if (string.IsNullOrWhiteSpace(request.Category))
+            throw new BusinessException("La categoría es obligatoria");
+
+        var amountToDiscount = Math.Max(0, goal.TargetAmount - goal.CurrentAmount);
+
+        if (amountToDiscount <= 0)
+            amountToDiscount = goal.TargetAmount;
+
+        if (account.Balance < amountToDiscount)
+            throw new BusinessException("Saldo insuficiente para completar la meta");
+
+        account.Balance -= amountToDiscount;
+
+        await _accountsRepository.UpdateBalanceAsync(account.Id, account.Balance);
+
+        var transaction = new Transaction
+        {
+            UserId = userId,
+            AccountId = account.Id,
+            Category = request.Category,
+            Type = TransactionTypes.Expense,
+            Amount = amountToDiscount,
+            Description = $"Aporte para completar meta: {goal.Name}",
+            TransactionDate = DateTime.UtcNow
+        };
+
+        await _transactionsRepository.CreateAsync(transaction);
+
         goal.CurrentAmount = goal.TargetAmount;
         goal.IsCompleted = true;
 
         await _repository.UpdateAsync(goal);
 
         _logger.LogInformation(
-            "Meta completada. UserId: {UserId}, GoalId: {GoalId}",
+            "Meta completada y descontada de cuenta. UserId: {UserId}, GoalId: {GoalId}, AccountId: {AccountId}, Amount: {Amount}",
             userId,
-            id);
+            id,
+            account.Id,
+            amountToDiscount);
 
         var resp = Map(goal);
         resp.CurrentAmount = await GetAvailableBalanceAsync(userId);
