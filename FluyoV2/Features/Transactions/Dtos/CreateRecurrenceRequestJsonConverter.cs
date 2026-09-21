@@ -1,7 +1,7 @@
 using System;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Globalization;
 
 namespace FluyoV2.Features.Transactions.Dtos;
 
@@ -55,8 +55,13 @@ public class CreateRecurrenceRequestJsonConverter : JsonConverter<CreateRecurren
         if (TryGetPropertyIgnoreCase(root, "transactionId", out var tId) && tId.ValueKind == JsonValueKind.String)
             result.TransactionId = tId.GetString() ?? string.Empty;
 
-        if (TryGetPropertyIgnoreCase(root, "frequency", out var freq) && freq.ValueKind == JsonValueKind.String)
-            result.Frequency = freq.GetString() ?? string.Empty;
+        if (TryGetPropertyIgnoreCase(root, "months", out var months) && months.ValueKind != JsonValueKind.Null)
+        {
+            if (months.ValueKind == JsonValueKind.Number && months.TryGetInt32(out var monthsValue))
+                result.Months = monthsValue;
+            else if (months.ValueKind == JsonValueKind.String && int.TryParse(months.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedMonths))
+                result.Months = parsedMonths;
+        }
 
         if (TryGetPropertyIgnoreCase(root, "nextDate", out var next) && next.ValueKind != JsonValueKind.Null)
         {
@@ -141,7 +146,7 @@ public class CreateRecurrenceRequestJsonConverter : JsonConverter<CreateRecurren
         writer.WriteStartObject();
 
         writer.WriteString("transactionId", value.TransactionId);
-        writer.WriteString("frequency", value.Frequency);
+        writer.WriteNumber("months", value.Months);
         writer.WriteString("nextDate", value.NextDate.ToString("o"));
         if (value.EndDate.HasValue)
             writer.WriteString("endDate", value.EndDate.Value.ToString("o"));

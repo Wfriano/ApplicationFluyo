@@ -23,9 +23,9 @@ public class CreateTransactionWithRecurrenceRequestValidator
 
         When(x => x.Recurrence != null, () =>
         {
-            RuleFor(x => x.Recurrence!.Frequency)
-                .NotEmpty()
-                .WithMessage("La frecuencia de la recurrencia es obligatoria");
+            RuleFor(x => x.Recurrence!.Months)
+                .GreaterThan(0)
+                .WithMessage("La cantidad de meses de la recurrencia es obligatoria");
 
             RuleFor(x => x.Recurrence!.NextDate)
                 .GreaterThan(DateTime.MinValue)

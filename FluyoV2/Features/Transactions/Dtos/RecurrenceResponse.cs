@@ -6,7 +6,7 @@ public class RecurrenceResponse
 
     public string TransactionId { get; set; } = string.Empty;
 
-    public string Frequency { get; set; } = string.Empty;
+    public int Months { get; set; }
 
     public DateTime NextDate { get; set; }
 

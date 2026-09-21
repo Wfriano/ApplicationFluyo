@@ -32,16 +32,16 @@ public class CreateTransactionRequestValidator
         // Only validate recurrence fields when the client provided meaningful recurrence data.
         // This avoids forcing validation when an empty object ("Recurrence": {}) is sent.
         When(x => x.Recurrence != null && (
-            !string.IsNullOrWhiteSpace(x.Recurrence.Frequency) ||
+            x.Recurrence.Months > 0 ||
             x.Recurrence.NextDate > DateTime.MinValue ||
             x.Recurrence.Amount > 0 ||
             !string.IsNullOrWhiteSpace(x.Recurrence.Type) ||
             !string.IsNullOrWhiteSpace(x.Recurrence.AccountId)
         ), () =>
         {
-            RuleFor(x => x.Recurrence!.Frequency)
-                .NotEmpty()
-                .WithMessage("La frecuencia de la recurrencia es obligatoria");
+            RuleFor(x => x.Recurrence!.Months)
+                .GreaterThan(0)
+                .WithMessage("La cantidad de meses de la recurrencia es obligatoria");
 
             RuleFor(x => x.Recurrence!.NextDate)
                 .GreaterThan(DateTime.MinValue)

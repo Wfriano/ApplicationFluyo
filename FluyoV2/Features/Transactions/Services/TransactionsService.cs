@@ -55,7 +55,7 @@ public class TransactionsService
             var firstDayOfSelectedMonth = FirstDayOfSelectedMonthUtc(request.TransactionDate);
             var recurrenceRequest = request.Recurrence ?? new CreateRecurrenceRequest
             {
-                Frequency = "Mensual",
+                Months = 1,
                 NextDate = firstDayOfSelectedMonth,
                 EndDate = firstDayOfSelectedMonth,
                 Amount = request.Amount,
@@ -220,7 +220,7 @@ public class TransactionsService
             var firstDayOfSelectedMonth = FirstDayOfSelectedMonthUtc(request.TransactionDate);
             var recurrenceRequest = request.Recurrence ?? new CreateRecurrenceRequest
             {
-                Frequency = "Mensual",
+                Months = 1,
                 NextDate = firstDayOfSelectedMonth,
                 EndDate = firstDayOfSelectedMonth,
                 Amount = request.Amount,
@@ -420,7 +420,7 @@ public class TransactionsService
                 {
                     Id = existingRecurrence.Id,
                     TransactionId = transaction.Id,
-                    Frequency = request.Recurrence.Frequency,
+                    Months = request.Recurrence.Months,
                     NextDate = request.Recurrence.NextDate,
                     EndDate = request.Recurrence.EndDate,
                     CreatedAt = existingRecurrence.CreatedAt,

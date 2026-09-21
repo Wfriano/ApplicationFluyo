@@ -3,13 +3,6 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace FluyoV2.Features.Transactions.Models;
 
-public enum Frequency
-{
-    Mensual,
-    Quincenal,
-    Semanal
-}
-
 public class Recurrence
 {
     [BsonId]
@@ -21,8 +14,7 @@ public class Recurrence
 
     public string UserId { get; set; } = string.Empty;
 
-    [BsonRepresentation(BsonType.String)]
-    public Frequency Frequency { get; set; }
+    public int Months { get; set; }
 
     public DateTime NextDate { get; set; }
 

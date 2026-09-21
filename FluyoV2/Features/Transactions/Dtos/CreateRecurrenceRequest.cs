@@ -7,8 +7,8 @@ public class CreateRecurrenceRequest
 {
     public string TransactionId { get; set; } = string.Empty;
 
-    // Expected values: "Mensual", "Quincenal", "Semanal"
-    public string Frequency { get; set; } = string.Empty;
+    // Number of months between each recurrence
+    public int Months { get; set; }
 
     public DateTime NextDate { get; set; }
 

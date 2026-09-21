@@ -22,14 +22,14 @@ public class RecurrencesService
         string userId,
         CreateRecurrenceRequest request)
     {
-        if (!Enum.TryParse<Frequency>(request.Frequency, ignoreCase: true, out var frequency))
-            throw new ArgumentException("Frequency is invalid");
+        if (request.Months <= 0)
+            throw new ArgumentException("Months must be greater than zero");
 
         var recurrence = new Recurrence
         {
             TransactionId = string.IsNullOrWhiteSpace(request.TransactionId) ? null : request.TransactionId,
             UserId = userId,
-            Frequency = frequency,
+            Months = request.Months,
             NextDate = FirstDayOfSelectedMonthUtc(request.NextDate),
             EndDate = request.EndDate,
             Amount = request.Amount,
@@ -75,10 +75,10 @@ public class RecurrencesService
         if (recurrence is null || recurrence.UserId != userId)
             throw new ArgumentException("Recurrence not found or unauthorized");
 
-        if (!Enum.TryParse<Frequency>(request.Frequency, true, out var frequency))
-            throw new ArgumentException("Frequency is invalid");
+        if (request.Months <= 0)
+            throw new ArgumentException("Months must be greater than zero");
 
-        recurrence.Frequency = frequency;
+        recurrence.Months = request.Months;
         recurrence.NextDate = FirstDayOfSelectedMonthUtc(request.NextDate);
         recurrence.EndDate = request.EndDate;
         recurrence.Amount = request.Amount;
@@ -133,7 +133,7 @@ public class RecurrencesService
         {
             Id = r.Id,
             TransactionId = r.TransactionId ?? string.Empty,
-            Frequency = r.Frequency.ToString(),
+            Months = r.Months,
             NextDate = r.NextDate,
             EndDate = r.EndDate,
             CreatedAt = r.CreatedAt,

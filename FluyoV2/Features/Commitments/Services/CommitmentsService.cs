@@ -76,7 +76,7 @@ public class CommitmentsService
 
         // If client provided recurrence settings, create a recurrence so the background processor will generate pending commitments
         if (request.Recurrence != null && (
-            !string.IsNullOrWhiteSpace(request.Recurrence.Frequency) ||
+            request.Recurrence.Months > 0 ||
             request.Recurrence.NextDate > DateTime.MinValue ||
             request.Recurrence.Amount > 0 ||
             !string.IsNullOrWhiteSpace(request.Recurrence.Type) ||
@@ -85,17 +85,11 @@ public class CommitmentsService
         {
             try
             {
-                // Validate frequency
-                if (!Enum.TryParse<FluyoV2.Features.Transactions.Models.Frequency>(request.Recurrence.Frequency, true, out var frequency))
-                {
-                    throw new ArgumentException("Frequency is invalid");
-                }
-
                 var recurrence = new FluyoV2.Features.Transactions.Models.Recurrence
                 {
                     TransactionId = null,
                     UserId = userId,
-                    Frequency = frequency,
+                    Months = request.Recurrence.Months,
                     NextDate = FirstDayOfSelectedMonthUtc(request.Recurrence.NextDate),
                     EndDate = request.Recurrence.EndDate,
                     Amount = request.Recurrence.Amount > 0 ? request.Recurrence.Amount : request.Amount,
@@ -146,7 +140,7 @@ public class CommitmentsService
         {
             Id = r.Id,
             TransactionId = r.TransactionId,
-            Frequency = r.Frequency.ToString(),
+            Months = r.Months,
             NextDate = r.NextDate,
             EndDate = r.EndDate,
             CreatedAt = r.CreatedAt,
@@ -242,7 +236,7 @@ public class CommitmentsService
             {
                 Id = rec.Id,
                 TransactionId = rec.TransactionId,
-                Frequency = rec.Frequency.ToString(),
+                Months = rec.Months,
                 NextDate = rec.NextDate,
                 EndDate = rec.EndDate,
                 CreatedAt = rec.CreatedAt,
@@ -304,7 +298,7 @@ public class CommitmentsService
         var existingRecurrenceId = ResolveRecurrenceId(commitment);
 
         var hasRecurrenceData = request.Recurrence != null && (
-            !string.IsNullOrWhiteSpace(request.Recurrence.Frequency) ||
+            request.Recurrence.Months > 0 ||
             request.Recurrence.NextDate > DateTime.MinValue ||
             request.Recurrence.Amount > 0 ||
             !string.IsNullOrWhiteSpace(request.Recurrence.Type) ||
@@ -313,9 +307,8 @@ public class CommitmentsService
 
         if (hasRecurrenceData)
         {
-            // create or update recurrence
-            if (!Enum.TryParse<FluyoV2.Features.Transactions.Models.Frequency>(request.Recurrence.Frequency, true, out var frequency))
-                throw new ArgumentException("Frequency is invalid");
+            if (request.Recurrence.Months <= 0)
+                throw new ArgumentException("Months must be greater than zero");
 
             if (string.IsNullOrWhiteSpace(existingRecurrenceId))
             {
@@ -323,7 +316,7 @@ public class CommitmentsService
                 {
                     TransactionId = null,
                     UserId = userId,
-                    Frequency = frequency,
+                    Months = request.Recurrence.Months,
                     NextDate = FirstDayOfSelectedMonthUtc(request.Recurrence.NextDate),
                     EndDate = request.Recurrence.EndDate,
                     Amount = request.Recurrence.Amount > 0 ? request.Recurrence.Amount : request.Amount,
@@ -348,7 +341,7 @@ public class CommitmentsService
 
                 if (existingRec is not null)
                 {
-                    existingRec.Frequency = frequency;
+                    existingRec.Months = request.Recurrence.Months;
                     existingRec.NextDate = FirstDayOfSelectedMonthUtc(request.Recurrence.NextDate);
                     existingRec.EndDate = request.Recurrence.EndDate;
                     existingRec.Amount = request.Recurrence.Amount > 0 ? request.Recurrence.Amount : request.Amount;
@@ -368,7 +361,7 @@ public class CommitmentsService
                     {
                         TransactionId = null,
                         UserId = userId,
-                        Frequency = frequency,
+                        Months = request.Recurrence.Months,
                         NextDate = FirstDayOfSelectedMonthUtc(request.Recurrence.NextDate),
                         EndDate = request.Recurrence.EndDate,
                         Amount = request.Recurrence.Amount > 0 ? request.Recurrence.Amount : request.Amount,
@@ -410,7 +403,7 @@ public class CommitmentsService
                 {
                     Id = rec.Id,
                     TransactionId = rec.TransactionId,
-                    Frequency = rec.Frequency.ToString(),
+                    Months = rec.Months,
                     NextDate = rec.NextDate,
                     EndDate = rec.EndDate,
                     CreatedAt = rec.CreatedAt,

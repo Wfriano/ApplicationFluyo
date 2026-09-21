@@ -114,7 +114,9 @@ public class RecurrenceProcessorService : BackgroundService
                                 rec.UserId);
                         }
 
-                        rec.NextDate = FirstDayOfNextMonthUtc(now);
+                        rec.NextDate = rec.NextDate == default
+                            ? FirstDayOfNextMonthUtc(now)
+                            : rec.NextDate.AddMonths(Math.Max(1, rec.Months));
                         await recurrencesRepository.UpdateAsync(rec);
                     }
                 }
