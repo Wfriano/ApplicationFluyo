@@ -38,12 +38,12 @@ public class NotificationsController : BaseController
         if (string.IsNullOrEmpty(userId))
             return Failure("Usuario no autorizado");
 
-        var ok = await _service.MarkAsReadAsync(userId, id);
+        var ok = await _service.DeleteAsync(userId, id);
 
         if (!ok)
             return NotFoundResponse("Notificación no encontrada");
 
-        return Success(true, "Notificación marcada como leída");
+        return Success(true, "Notificación eliminada");
     }
 
     [HttpPatch("read-all")]
