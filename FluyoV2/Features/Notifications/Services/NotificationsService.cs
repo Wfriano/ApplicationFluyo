@@ -138,7 +138,7 @@ public class NotificationsService
         var notification = new Notification
         {
             UserId = userId,
-            Title = template.Title,
+            Title = template.Message,
             Message = template.Message,
             SourceType = "EmotionalCalendar",
             SourceId = template.Day.ToString(),
