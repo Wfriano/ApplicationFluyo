@@ -8,6 +8,8 @@ public interface IUserRepository
 
     Task<User?> GetByEmailAsync(string email);
 
+    Task<List<User>> GetAllAsync();
+
     Task<bool> UpdatePasswordAsync(
         string userId,
         string newPasswordHash,

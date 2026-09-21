@@ -203,7 +203,7 @@ public class NotificationsService
     private static TimeZoneInfo ResolveTimeZone(string? timeZoneId)
     {
         if (string.IsNullOrWhiteSpace(timeZoneId))
-            return TimeZoneInfo.Utc;
+            return CreateBogotaTimeZone();
 
         try
         {
@@ -211,17 +211,19 @@ public class NotificationsService
         }
         catch
         {
-            if (string.Equals(timeZoneId, "America/Bogota", StringComparison.OrdinalIgnoreCase))
-            {
-                return TimeZoneInfo.CreateCustomTimeZone(
-                    "America/Bogota",
-                    TimeSpan.FromHours(-5),
-                    "Bogota",
-                    "Bogota");
-            }
-
-            return TimeZoneInfo.Utc;
+            return string.Equals(timeZoneId, "America/Bogota", StringComparison.OrdinalIgnoreCase)
+                ? CreateBogotaTimeZone()
+                : CreateBogotaTimeZone();
         }
+    }
+
+    private static TimeZoneInfo CreateBogotaTimeZone()
+    {
+        return TimeZoneInfo.CreateCustomTimeZone(
+            "America/Bogota",
+            TimeSpan.FromHours(-5),
+            "Bogota",
+            "Bogota");
     }
 
     private static NotificationResponse Map(Notification item)

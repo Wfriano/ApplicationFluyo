@@ -35,6 +35,13 @@ public class UserRepository : IUserRepository
             .FirstOrDefaultAsync();
     }
 
+    public async Task<List<User>> GetAllAsync()
+    {
+        return await _usersCollection
+            .Find(_ => true)
+            .ToListAsync();
+    }
+
     public async Task<bool> UpdatePasswordAsync(
         string userId,
         string newPasswordHash,

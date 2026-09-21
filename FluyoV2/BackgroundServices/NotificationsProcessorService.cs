@@ -3,6 +3,7 @@ using FluyoV2.Features.Commitments.Repositories;
 using FluyoV2.Features.Liabilities.Repositories;
 using FluyoV2.Features.Notifications.Repositories;
 using FluyoV2.Features.Notifications.Services;
+using FluyoV2.Users.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -36,7 +37,7 @@ public class NotificationsProcessorService : BackgroundService
                 using var scope = _scopeFactory.CreateScope();
 
                 var notificationsService = scope.ServiceProvider.GetRequiredService<NotificationsService>();
-                var notificationDevicesRepository = scope.ServiceProvider.GetRequiredService<NotificationDevicesRepository>();
+                var userRepository = scope.ServiceProvider.GetRequiredService<IUserRepository>();
                 var commitmentsRepository = scope.ServiceProvider.GetRequiredService<CommitmentsRepository>();
                 var assetsRepository = scope.ServiceProvider.GetRequiredService<AssetsRepository>();
                 var liabilitiesRepository = scope.ServiceProvider.GetRequiredService<LiabilitiesRepository>();
@@ -85,14 +86,10 @@ public class NotificationsProcessorService : BackgroundService
                         dedupKey);
                 }
 
-                var activeUsers = (await notificationDevicesRepository.GetAllActiveAsync())
-                    .Select(x => x.UserId)
-                    .Distinct()
-                    .ToList();
-
-                foreach (var userId in activeUsers)
+                var allUsers = await userRepository.GetAllAsync();
+                foreach (var user in allUsers)
                 {
-                    await notificationsService.EnsureDailyEmotionalCalendarNotificationAsync(userId, today, stoppingToken);
+                    await notificationsService.EnsureDailyEmotionalCalendarNotificationAsync(user.Id, today, stoppingToken);
                 }
 
                 await notificationsService.DispatchPendingAsync(now, stoppingToken);
