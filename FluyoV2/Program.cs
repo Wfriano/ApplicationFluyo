@@ -161,7 +161,12 @@ builder.Services.AddScoped<RecurrencesService>();
 // Background service to process recurrences
 builder.Services.AddHostedService<FluyoV2.BackgroundServices.RecurrenceProcessorService>();
 
+builder.Services.AddHttpClient();
+
 builder.Services.AddScoped<NotificationsRepository>();
+builder.Services.AddScoped<NotificationDevicesRepository>();
+builder.Services.AddScoped<ExpoPushService>();
+builder.Services.AddScoped<EmotionalCalendarService>();
 builder.Services.AddScoped<NotificationsService>();
 // Background service to generate payment notifications
 builder.Services.AddHostedService<FluyoV2.BackgroundServices.NotificationsProcessorService>();

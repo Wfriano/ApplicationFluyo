@@ -1,4 +1,5 @@
 using FluyoV2.Controllers.Base;
+using FluyoV2.Features.Notifications.Dtos;
 using FluyoV2.Features.Notifications.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,6 +18,33 @@ public class NotificationsController : BaseController
         _service = service;
     }
 
+    [HttpPost("devices")]
+    public async Task<IActionResult> RegisterDevice(RegisterNotificationDeviceRequest request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrEmpty(userId))
+            return Failure("Usuario no autorizado");
+
+        if (string.IsNullOrWhiteSpace(request.InstallationId) || string.IsNullOrWhiteSpace(request.ExpoPushToken))
+            return Failure("El dispositivo y el token push son obligatorios");
+
+        await _service.RegisterDeviceAsync(userId, request);
+        return Success(true, "Dispositivo registrado correctamente");
+    }
+
+    [HttpDelete("devices/{installationId}")]
+    public async Task<IActionResult> UnregisterDevice(string installationId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrEmpty(userId))
+            return Failure("Usuario no autorizado");
+
+        await _service.UnregisterDeviceAsync(userId, installationId);
+        return Success(true, "Dispositivo desvinculado correctamente");
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
@@ -26,7 +54,6 @@ public class NotificationsController : BaseController
             return Failure("Usuario no autorizado");
 
         var result = await _service.GetAllAsync(userId);
-
         return Success(result, "Notificaciones consultadas correctamente");
     }
 
@@ -38,12 +65,12 @@ public class NotificationsController : BaseController
         if (string.IsNullOrEmpty(userId))
             return Failure("Usuario no autorizado");
 
-        var ok = await _service.DeleteAsync(userId, id);
+        var ok = await _service.MarkAsReadAsync(userId, id);
 
         if (!ok)
             return NotFoundResponse("Notificación no encontrada");
 
-        return Success(true, "Notificación eliminada");
+        return Success(true, "Notificación marcada como leída");
     }
 
     [HttpPatch("read-all")]
@@ -55,7 +82,6 @@ public class NotificationsController : BaseController
             return Failure("Usuario no autorizado");
 
         await _service.MarkAllAsReadAsync(userId);
-
         return Success(true, "Notificaciones marcadas como leídas");
     }
 
@@ -84,7 +110,6 @@ public class NotificationsController : BaseController
             return Failure("Usuario no autorizado");
 
         await _service.DeleteAllAsync(userId);
-
         return Success(true, "Notificaciones eliminadas");
     }
 }

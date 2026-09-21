@@ -26,6 +26,14 @@ public class NotificationsRepository
             .ToListAsync();
     }
 
+    public async Task<List<Notification>> GetPendingDueAsync(DateTime utcNow)
+    {
+        return await _context.Notifications
+            .Find(x => !x.IsDeleted && x.Status == "pending" && x.ScheduledAt.HasValue && x.ScheduledAt.Value <= utcNow)
+            .SortBy(x => x.ScheduledAt)
+            .ToListAsync();
+    }
+
     public async Task<Notification?> GetByIdAsync(string id)
     {
         return await _context.Notifications
@@ -45,6 +53,25 @@ public class NotificationsRepository
         await _context.Notifications.ReplaceOneAsync(
             x => x.Id == notification.Id,
             notification);
+    }
+
+    public async Task MarkAsSentAsync(string id, DateTime sentAt)
+    {
+        var update = Builders<Notification>.Update
+            .Set(x => x.Status, "sent")
+            .Set(x => x.SentAt, sentAt)
+            .Set(x => x.ErrorMessage, null);
+
+        await _context.Notifications.UpdateOneAsync(x => x.Id == id, update);
+    }
+
+    public async Task MarkAsFailedAsync(string id, string errorMessage)
+    {
+        var update = Builders<Notification>.Update
+            .Set(x => x.Status, "failed")
+            .Set(x => x.ErrorMessage, errorMessage);
+
+        await _context.Notifications.UpdateOneAsync(x => x.Id == id, update);
     }
 
     public async Task MarkAllAsReadAsync(string userId)

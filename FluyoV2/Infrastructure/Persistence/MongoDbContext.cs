@@ -57,7 +57,16 @@ public class MongoDbContext
         _database.GetCollection<Liability>("Liabilities");
 
     public IMongoCollection<Notification> Notifications =>
-        _database.GetCollection<Notification>("Notifications");
+        _database.GetCollection<Notification>(
+            string.IsNullOrWhiteSpace(_settings.NotificationsCollectionName)
+                ? "Notifications"
+                : _settings.NotificationsCollectionName);
+
+    public IMongoCollection<NotificationDevice> NotificationDevices =>
+        _database.GetCollection<NotificationDevice>(
+            string.IsNullOrWhiteSpace(_settings.NotificationDevicesCollectionName)
+                ? "NotificationDevices"
+                : _settings.NotificationDevicesCollectionName);
 
     public IMongoCollection<Transfer> Transfers =>
         _database.GetCollection<Transfer>("Transfers");

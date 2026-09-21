@@ -9,6 +9,7 @@
         public string TransactionsCollectionName { get; set; } = string.Empty;
         public string GoalsCollectionName { get; set; } = string.Empty;
         public string RecurrencesCollectionName { get; set; } = string.Empty;
-
+        public string NotificationsCollectionName { get; set; } = "Notifications";
+        public string NotificationDevicesCollectionName { get; set; } = "NotificationDevices";
     }
 }
