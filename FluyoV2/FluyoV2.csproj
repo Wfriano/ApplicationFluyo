@@ -7,6 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Features\Users\Models\**" />
+    <Content Remove="Features\Users\Models\**" />
+    <EmbeddedResource Remove="Features\Users\Models\**" />
+    <None Remove="Features\Users\Models\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
     <PackageReference Include="FluentValidation" Version="12.1.1" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
@@ -18,7 +25,6 @@
 
   <ItemGroup>
     <Folder Include="Features\Categories\Repositories\" />
-    <Folder Include="Features\Users\Models\" />
   </ItemGroup>
 
 </Project>

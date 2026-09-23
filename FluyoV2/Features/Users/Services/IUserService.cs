@@ -15,4 +15,6 @@ public interface IUserService
         string userId,
         ChangePasswordRequest request
     );
+    Task<Result> SendPasswordByEmail(string email);
+    Task<Result> ChangePassword(string userId, string currentPassword, string newPassword);
 }

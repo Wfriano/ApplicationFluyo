@@ -1,4 +1,4 @@
-﻿using System.Text.RegularExpressions;
+﻿using FluyoV2.Infrastructure;
 using FluyoV2.Users.Dtos;
 using FluyoV2.Users.Repositories;
 
@@ -7,10 +7,11 @@ namespace FluyoV2.Users.Services;
 public class UserService : IUserService
 {
     private readonly IUserRepository _userRepository;
-
-    public UserService(IUserRepository userRepository)
+    private readonly IEmailService _emailService;
+    public UserService(IUserRepository userRepository, IEmailService emailService)
     {
         _userRepository = userRepository;
+        _emailService = emailService;
     }
 
     public async Task<ChangePasswordResponse> ChangePasswordAsync(
@@ -18,21 +19,14 @@ public class UserService : IUserService
         ChangePasswordRequest request)
     {
         if (string.IsNullOrWhiteSpace(userId))
-        {
             return Error("No fue posible identificar al usuario autenticado.");
-        }
 
         if (request is null)
-        {
             return Error("La información enviada no es válida.");
-        }
 
         var user = await _userRepository.GetByIdAsync(userId);
-
         if (user is null)
-        {
             return Error("El usuario no fue encontrado.");
-        }
 
         var currentPasswordIsValid = BCrypt.Net.BCrypt.Verify(
             request.CurrentPassword,
@@ -40,9 +34,7 @@ public class UserService : IUserService
         );
 
         if (!currentPasswordIsValid)
-        {
             return Error("La contraseña actual es incorrecta.");
-        }
 
         var isSamePassword = BCrypt.Net.BCrypt.Verify(
             request.NewPassword,
@@ -50,37 +42,15 @@ public class UserService : IUserService
         );
 
         if (isSamePassword)
-        {
-            return Error(
-                "La nueva contraseña debe ser diferente a la contraseña actual."
-            );
-        }
+            return Error("La nueva contraseña debe ser diferente a la contraseña actual.");
 
-        var newPasswordHash = BCrypt.Net.BCrypt.HashPassword(
-            request.NewPassword,
-            workFactor: 11
-        );
-
-        var passwordUpdatedAt = DateTime.UtcNow;
-
-        var updated = await _userRepository.UpdatePasswordAsync(
-            userId,
-            newPasswordHash,
-            passwordUpdatedAt
-        );
+        var newPasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword, workFactor: 11);
+        var updated = await _userRepository.UpdatePasswordAsync(userId, newPasswordHash, DateTime.UtcNow);
 
         if (!updated)
-        {
-            return Error(
-                "No fue posible actualizar la contraseña. Inténtalo nuevamente."
-            );
-        }
+            return Error("No fue posible actualizar la contraseña. Inténtalo nuevamente.");
 
-        return new ChangePasswordResponse
-        {
-            Success = true,
-            Message = "Contraseña actualizada correctamente."
-        };
+        return new ChangePasswordResponse { Success = true, Message = "Contraseña actualizada correctamente." };
     }
 
     public async Task<UserResponse?> GetProfileAsync(string userId)
@@ -89,7 +59,6 @@ public class UserService : IUserService
             return null;
 
         var user = await _userRepository.GetByIdAsync(userId);
-
         if (user is null)
             return null;
 
@@ -103,22 +72,9 @@ public class UserService : IUserService
         };
     }
 
-    private static ChangePasswordResponse Error(string message)
+    public async Task<UserResponse?> UpdateProfileAsync(string userId, UpdateUserRequest request)
     {
-        return new ChangePasswordResponse
-        {
-            Success = false,
-            Message = message
-        };
-    }
-    public async Task<UserResponse?> UpdateProfileAsync(
-    string userId,
-    UpdateUserRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(userId))
-            return null;
-
-        if (request is null)
+        if (string.IsNullOrWhiteSpace(userId) || request is null)
             return null;
 
         var fullName = request.FullName.Trim();
@@ -137,4 +93,48 @@ public class UserService : IUserService
 
         return await GetProfileAsync(userId);
     }
+
+    public async Task<Result> SendPasswordByEmail(string email)
+    {
+        var user = await _userRepository.GetByEmailAsync(email);
+        if (user is null)
+            return Result.Failure("Usuario no encontrado.");
+
+        var subject = "Recuperación de contraseña - Fluyo";
+        var body = $@"
+        Hola {user.FullName},
+
+        Gracias por comunicarte con nosotros para solicitar la recuperación tu contraseña en Fluyo.
+        Tu contraseña actual es: {user.PasswordHash}
+
+        Si no solicitaste este correo, ignóralo.
+
+        Equipo Fluyo
+        ";
+
+        await _emailService.SendEmailAsync(email, subject, body);
+
+        return Result.SuccessResult("Correo enviado con la contraseña.");
+    }
+
+    public async Task<Result> ChangePassword(string userId, string currentPassword, string newPassword)
+    {
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user is null)
+            return Result.Failure("Usuario no encontrado.");
+
+        if (!BCrypt.Net.BCrypt.Verify(currentPassword, user.PasswordHash))
+            return Result.Failure("La contraseña actual es incorrecta.");
+
+        var newPasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword, workFactor: 11);
+        var updated = await _userRepository.UpdatePasswordAsync(userId, newPasswordHash, DateTime.UtcNow);
+
+        if (!updated)
+            return Result.Failure("No fue posible actualizar la contraseña.");
+
+        return Result.SuccessResult("Contraseña cambiada correctamente.");
+    }
+
+    private static ChangePasswordResponse Error(string message) =>
+        new ChangePasswordResponse { Success = false, Message = message };
 }

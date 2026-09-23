@@ -112,4 +112,12 @@ public class UsersController : BaseController
             "Perfil actualizado correctamente"
         );
     }
+    
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
+    {
+        var result = await _userService.SendPasswordByEmail(dto.Email);
+        if (!result.Success) return BadRequest(result.Message);
+        return Ok(result.Message);
+    }
 }

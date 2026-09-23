@@ -21,6 +21,7 @@ using FluyoV2.Features.Transactions.Services;
 using FluyoV2.Features.Transfers.Repositories;
 using FluyoV2.Features.Transfers.Services;
 using FluyoV2.Infrastructure.Persistence;
+using FluyoV2.Infrastructure; // <-- donde se encuentra EmailService
 using FluyoV2.Middleware;
 using FluyoV2.Settings;
 using FluyoV2.Users.Repositories;
@@ -30,13 +31,11 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Mongo Settings
 builder.Services.Configure<MongoDbSettings>(
     builder.Configuration.GetSection("MongoDbSettings"));
-
 builder.Services.AddSingleton(sp =>
     sp.GetRequiredService<
         Microsoft.Extensions.Options.IOptions<MongoDbSettings>>().Value);
@@ -44,7 +43,6 @@ builder.Services.AddSingleton(sp =>
 // JWT Settings
 builder.Services.Configure<JwtSettings>(
     builder.Configuration.GetSection("JwtSettings"));
-
 builder.Services.AddSingleton(sp =>
     sp.GetRequiredService<
         Microsoft.Extensions.Options.IOptions<JwtSettings>>().Value);
@@ -56,29 +54,22 @@ var jwtSettings = builder.Configuration
 // JWT Authentication
 builder.Services.AddAuthentication(options =>
 {
-    options.DefaultAuthenticateScheme =
-        JwtBearerDefaults.AuthenticationScheme;
-
-    options.DefaultChallengeScheme =
-        JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 })
 .AddJwtBearer(options =>
 {
-    options.TokenValidationParameters =
-        new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-
-            ValidIssuer = jwtSettings!.Issuer,
-            ValidAudience = jwtSettings.Audience,
-
-            IssuerSigningKey =
-                new SymmetricSecurityKey(
-                    Encoding.UTF8.GetBytes(jwtSettings.Key))
-        };
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtSettings!.Issuer,
+        ValidAudience = jwtSettings.Audience,
+        IssuerSigningKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(jwtSettings.Key))
+    };
 });
 
 builder.Services.AddAuthorization();
@@ -158,7 +149,6 @@ builder.Services.AddScoped<TransactionsService>();
 
 builder.Services.AddScoped<RecurrencesRepository>();
 builder.Services.AddScoped<RecurrencesService>();
-// Background service to process recurrences
 builder.Services.AddHostedService<FluyoV2.BackgroundServices.RecurrenceProcessorService>();
 
 builder.Services.AddHttpClient();
@@ -190,6 +180,14 @@ builder.Services.AddScoped<LiabilitiesService>();
 
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
+
+// SMTP Settings
+builder.Services.Configure<SmtpSettings>(
+    builder.Configuration.GetSection("SmtpSettings"));
+builder.Services.AddSingleton(sp =>
+    sp.GetRequiredService<
+        Microsoft.Extensions.Options.IOptions<SmtpSettings>>().Value);
+builder.Services.AddScoped<IEmailService, EmailService>();
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
